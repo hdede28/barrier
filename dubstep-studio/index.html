@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dubstep Studio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1 class="logo">DUBSTEP <span>STUDIO</span></h1>
+
+  <div class="transport">
+    <button id="playBtn" class="btn btn-play" title="Oynat / Durdur">▶</button>
+    <button id="clearBtn" class="btn" title="Deseni temizle">Temizle</button>
+
+    <label class="field">
+      BPM
+      <input id="bpmInput" type="number" min="40" max="220" value="140">
+    </label>
+
+    <label class="field">
+      Adım
+      <select id="stepsSelect">
+        <option value="16" selected>16</option>
+        <option value="32">32</option>
+      </select>
+    </label>
+
+    <label class="field">
+      Ana Ses
+      <input id="masterVolume" type="range" min="0" max="1" step="0.01" value="0.9">
+    </label>
+  </div>
+
+  <div class="add-buttons">
+    <label class="btn btn-add" title="Bilgisayarından ses dosyası ekle (çoklu seçim yapılabilir)">
+      + Ses Ekle
+      <input id="fileInput" type="file" accept="audio/*" multiple hidden>
+    </label>
+    <button id="addWobbleBtn" class="btn btn-add">+ Wobble Bass Ekle</button>
+  </div>
+</header>
+
+<main id="trackList" class="track-list">
+  <!-- Track rows are rendered here by app.js -->
+</main>
+
+<p class="hint">
+  İpucu: Adım kutularına tıklayarak desen oluştur, sağdaki kaydırıcılarla sesi ayarla,
+  <b>M</b> ile sustur / <b>S</b> ile sadece o kanalı çal, <b>+ Ses Ekle</b> ile kendi ses
+  dosyalarını istediğin kadar ekle. Wobble Bass parçalarında dalga formu, kesim frekansı,
+  LFO hızı ve derinliğiyle klasik "wub wub" basını tasarlayabilirsin.
+</p>
+
+<script src="app.js"></script>
+</body>
+</html>
