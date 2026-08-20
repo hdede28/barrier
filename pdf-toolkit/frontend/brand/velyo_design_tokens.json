@@ -1,0 +1,52 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "brand": {
+    "name": "Velyo",
+    "tagline": "Belgeler, akışında.",
+    "positioning": "Premium belge operasyonları için sakin, hızlı ve güven veren çalışma alanı."
+  },
+  "color": {
+    "ink": { "950": "#060914", "900": "#0A1020", "850": "#0E1528", "800": "#121B31", "700": "#1C2946" },
+    "surface": { "base": "#0A1020", "raised": "#121B31", "overlay": "#17223B", "subtle": "#0E1528", "inverse": "#F7F9FF" },
+    "text": { "primary": "#F6F8FF", "secondary": "#AEB9D0", "tertiary": "#7E8AA5", "onAccent": "#FFFFFF", "inverse": "#101728" },
+    "accent": { "violet": "#8B5CF6", "violetSoft": "#A78BFA", "blue": "#2F6BFF", "blueSoft": "#60A5FA", "gradient": "linear-gradient(135deg, #9A5BFF 0%, #6D5DFB 42%, #2F6BFF 100%)" },
+    "state": { "success": "#2DD4A4", "warning": "#F6B94A", "danger": "#F06B7A", "info": "#63B4FF" },
+    "line": { "subtle": "rgba(174, 185, 208, 0.12)", "default": "rgba(174, 185, 208, 0.18)", "strong": "rgba(174, 185, 208, 0.28)", "focus": "#8B5CF6" }
+  },
+  "typography": {
+    "fontFamily": { "display": "Manrope, Inter, ui-sans-serif, system-ui, sans-serif", "body": "Inter, ui-sans-serif, system-ui, sans-serif", "mono": "JetBrains Mono, ui-monospace, monospace" },
+    "scale": {
+      "displayXL": { "fontSize": "56px", "lineHeight": "64px", "fontWeight": 700, "letterSpacing": "-0.04em" },
+      "displayL": { "fontSize": "40px", "lineHeight": "48px", "fontWeight": 700, "letterSpacing": "-0.035em" },
+      "heading": { "fontSize": "24px", "lineHeight": "32px", "fontWeight": 650, "letterSpacing": "-0.02em" },
+      "title": { "fontSize": "18px", "lineHeight": "26px", "fontWeight": 650, "letterSpacing": "-0.01em" },
+      "body": { "fontSize": "15px", "lineHeight": "24px", "fontWeight": 450, "letterSpacing": "0" },
+      "label": { "fontSize": "13px", "lineHeight": "18px", "fontWeight": 600, "letterSpacing": "0.01em" },
+      "caption": { "fontSize": "12px", "lineHeight": "16px", "fontWeight": 500, "letterSpacing": "0.01em" }
+    }
+  },
+  "spacing": { "1": "4px", "2": "8px", "3": "12px", "4": "16px", "5": "20px", "6": "24px", "8": "32px", "10": "40px", "12": "48px", "16": "64px", "20": "80px" },
+  "radius": { "xs": "8px", "sm": "12px", "md": "16px", "lg": "20px", "xl": "28px", "pill": "999px" },
+  "shadow": { "card": "0 10px 30px rgba(0, 0, 0, 0.20)", "floating": "0 22px 60px rgba(1, 5, 20, 0.46)", "accent": "0 10px 28px rgba(91, 83, 255, 0.30)", "focus": "0 0 0 3px rgba(139, 92, 246, 0.34)" },
+  "layout": { "grid": "12 kolon; masaüstünde 24px gutter, 72–80px kenar boşluğu; içerik genişliği en fazla 1440px.", "panel": "Panel yüzeyi: raised; ince default çizgi; köşe: md; iç boşluk: 24px.", "density": "Varsayılan yoğunluk ferah olmalıdır; araç kartları 160–180px yüksekliğe inmemelidir." },
+  "motion": {
+    "principles": ["Hareket sonuç bildirmeli; dekoratif olmamalı.", "Girişler birbirini takip etmeli; tüm öğeler aynı anda hareket etmemeli.", "Dosya operasyonlarında ilerleme görünür, geri alınabilir ve deterministik olmalı."],
+    "easing": { "standard": "cubic-bezier(0.2, 0.8, 0.2, 1)", "enter": "cubic-bezier(0.16, 1, 0.3, 1)", "exit": "cubic-bezier(0.7, 0, 0.84, 0)", "emphasis": "cubic-bezier(0.34, 1.56, 0.64, 1)" },
+    "duration": { "instant": "120ms", "fast": "180ms", "base": "260ms", "panel": "360ms", "page": "460ms", "processing": "800ms" },
+    "recipes": {
+      "pageEnter": "opacity 0→1 + translateY(10px→0), 460ms enter; ana başlık 0ms, yükleme alanı 70ms, araç kartları 120/160/200ms kademeli.",
+      "cardHover": "transform translateY(0→-2px), border-color subtle→strong, shadow card→floating, 180ms standard. Reduced motion'da yalnızca renk değişir.",
+      "fileDrop": "dosya simgesi 0.94→1 ölçeklenir; yörünge çizgisi 14° döner; dropzone çizgisi accent gradient'e geçer. 260ms emphasis; sürekli nabız kullanılmaz.",
+      "processProgress": "işlem satırı genişliği lineer olmayan ama tahmin edilebilir biçimde ilerler; tamamlanınca simge check'e 180ms morph ve satır 2px yukarı taşınır.",
+      "toolSwitch": "araç değiştirilirken eski içerik 160ms exit ile sönümlenir; yeni panel 260ms enter ile 8px aşağıdan gelir. Aynı anda iki panel görünmez.",
+      "success": "sonuç kartı 360ms enter ile gelir; çok hafif 1.00→1.015→1 ölçek geri bildirimi; bir defa çalışır ve ses kullanmaz.",
+      "toast": "sağ alt toast 8px translateY + opacity ile 260ms enter; otomatik kapanış 4.5s; kritik hatalar kullanıcı kapatana kadar açık kalır."
+    },
+    "accessibility": "prefers-reduced-motion: reduce altında süreler en fazla 120ms olur, transform tabanlı geçişler kaldırılır, sonsuz animasyonlar devre dışı kalır."
+  },
+  "voice": {
+    "personality": ["sakin", "net", "yetkin", "yardımsever", "gösterişsiz premium"],
+    "cta": ["Dosya seç", "PDF'leri birleştir", "İndir", "Yeni işlem başlat"],
+    "avoid": ["aşırı ünlem", "belirsiz teknik jargon", "kullanıcıyı suçlayan hata dili", "gereksiz İngilizce" ]
+  }
+}

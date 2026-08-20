@@ -1,0 +1,20 @@
+# Local, user-owned data -- never committed.
+/data/
+/backend/data/
+/backend/.venv/
+/backend/_test_data/
+/backend/**/__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets
+.env
+
+# Frontend
+/frontend/node_modules/
+/frontend/.next/
+/frontend/out/
+/frontend/.env.local
+
+# OS
+.DS_Store
