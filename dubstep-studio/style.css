@@ -252,3 +252,94 @@ input[type="range"] {
   .add-buttons { margin-left: 0; }
   .track-name { width: 8rem; }
 }
+
+/* ---- Sound library modal ---- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 4, 10, 0.75);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1.5rem;
+}
+.modal-backdrop.hidden { display: none; }
+
+.modal {
+  width: 100%;
+  max-width: 42rem;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 0 30px rgba(178, 59, 255, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--cyan);
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+}
+
+.modal-hint {
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  margin: 0 0 1rem;
+}
+
+.library-category {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin: 1rem 0 0.5rem;
+}
+.library-category:first-child { margin-top: 0; }
+
+.library-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.library-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  border-left: 3px solid var(--item-color, var(--cyan));
+  background: var(--bg-row);
+  margin-bottom: 0.4rem;
+}
+
+.library-item .name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.library-item .preview-btn,
+.library-item .add-btn {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.library-item .preview-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.library-item .add-btn:hover { border-color: var(--purple); color: var(--purple); }

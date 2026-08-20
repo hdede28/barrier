@@ -117,14 +117,221 @@ function synthStab() {
   return buf;
 }
 
-const BUILTIN_SOUNDS = [
-  { name: "Kick", synth: synthKick, color: "#00e5ff" },
-  { name: "Snare", synth: synthSnare, color: "#ff3b9a" },
-  { name: "Hi-Hat", synth: synthHihat, color: "#39ff9c" },
-  { name: "Clap", synth: synthClap, color: "#ffd23b" },
-  { name: "Sub Hit", synth: synthSub, color: "#8a5bff" },
-  { name: "Stab", synth: synthStab, color: "#ff7a3b" },
+function synthTom(startFreq, endFreq, dur) {
+  return function () {
+    const buf = makeBuffer(dur);
+    const data = buf.getChannelData(0);
+    const sr = ctx.sampleRate;
+    let phase = 0;
+    for (let i = 0; i < data.length; i++) {
+      const t = i / sr;
+      const freq = endFreq + (startFreq - endFreq) * Math.exp(-t * 14);
+      phase += (2 * Math.PI * freq) / sr;
+      const amp = Math.exp(-t * (1 / dur) * 3.2);
+      data[i] = Math.sin(phase) * amp;
+    }
+    return buf;
+  };
+}
+
+function synthOpenHat() {
+  const buf = makeBuffer(0.38);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let prev = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const white = Math.random() * 2 - 1;
+    const hp = white - prev;
+    prev = white;
+    const env = Math.exp(-t * 8);
+    data[i] = hp * env * 0.8;
+  }
+  return buf;
+}
+
+function synthRim() {
+  const buf = makeBuffer(0.08);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const noise = (Math.random() * 2 - 1) * Math.exp(-t * 90);
+    const tone = Math.sin(2 * Math.PI * 1400 * t) * Math.exp(-t * 70);
+    data[i] = noise * 0.5 + tone * 0.6;
+  }
+  return buf;
+}
+
+function synthShaker() {
+  const buf = makeBuffer(0.2);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let prev = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const white = Math.random() * 2 - 1;
+    const hp = white - prev;
+    prev = white;
+    const env = Math.exp(-t * 18) * (0.5 + 0.5 * Math.sin(t * 90));
+    data[i] = hp * env * 0.7;
+  }
+  return buf;
+}
+
+function synthCrash() {
+  const buf = makeBuffer(1.4);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  const partials = [1, 1.33, 1.78, 2.41, 3.06];
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    let metallic = 0;
+    for (const p of partials) metallic += Math.sin(2 * Math.PI * 420 * p * t);
+    const noise = Math.random() * 2 - 1;
+    const env = Math.exp(-t * 2.2);
+    data[i] = (metallic * 0.12 + noise * 0.5) * env;
+  }
+  return buf;
+}
+
+function synthPercBlip() {
+  const buf = makeBuffer(0.12);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let phase = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const freq = 300 + 1400 * Math.exp(-t * 35);
+    phase += (2 * Math.PI * freq) / sr;
+    const amp = Math.exp(-t * 24);
+    data[i] = Math.sign(Math.sin(phase)) * 0.25 * amp;
+  }
+  return buf;
+}
+
+function synthSubDrop() {
+  const buf = makeBuffer(1.1);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let phase = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const freq = 20 + 220 * Math.exp(-t * 4.5);
+    phase += (2 * Math.PI * freq) / sr;
+    const amp = Math.exp(-t * 2.2);
+    data[i] = Math.sin(phase) * amp;
+  }
+  return buf;
+}
+
+function synthRiser() {
+  const buf = makeBuffer(1.2);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let prev = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const progress = t / 1.2;
+    const white = Math.random() * 2 - 1;
+    const hp = white - prev;
+    prev = white;
+    const mixed = white * (1 - progress) + hp * progress;
+    const env = progress * progress;
+    data[i] = mixed * env * 0.7;
+  }
+  return buf;
+}
+
+function synthLaser() {
+  const buf = makeBuffer(0.22);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let phase = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const freq = 1800 * Math.exp(-t * 22) + 80;
+    phase += (2 * Math.PI * freq) / sr;
+    const amp = Math.exp(-t * 12);
+    data[i] = Math.sin(phase) * amp * 0.5;
+  }
+  return buf;
+}
+
+function synthImpact() {
+  const buf = makeBuffer(0.9);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let phase = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    phase += (2 * Math.PI * 65) / sr;
+    const low = Math.sin(phase) * Math.exp(-t * 5);
+    const noise = (Math.random() * 2 - 1) * Math.exp(-t * 22);
+    data[i] = low * 0.7 + noise * 0.5;
+  }
+  return buf;
+}
+
+function synthReverseSwell() {
+  const dur = 0.6;
+  const buf = makeBuffer(dur);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const progress = t / dur;
+    const noise = Math.random() * 2 - 1;
+    const env = progress * progress * progress;
+    data[i] = noise * env * 0.6;
+  }
+  return buf;
+}
+
+function synthVocalChop() {
+  const buf = makeBuffer(0.18);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let phase = 0;
+  const f0 = 260;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    phase += (2 * Math.PI * f0) / sr;
+    const formant = Math.sin(phase) + 0.6 * Math.sin(phase * 2.01) + 0.35 * Math.sin(phase * 3.98);
+    const env = Math.exp(-t * 16) * Math.min(1, t * 200);
+    data[i] = formant * 0.22 * env;
+  }
+  return buf;
+}
+
+const SOUND_LIBRARY = [
+  { name: "Kick", category: "Davul", synth: synthKick, color: "#00e5ff" },
+  { name: "Snare", category: "Davul", synth: synthSnare, color: "#ff3b9a" },
+  { name: "Hi-Hat", category: "Davul", synth: synthHihat, color: "#39ff9c" },
+  { name: "Açık Hi-Hat", category: "Davul", synth: synthOpenHat, color: "#39ff9c" },
+  { name: "Clap", category: "Davul", synth: synthClap, color: "#ffd23b" },
+  { name: "Rimshot", category: "Davul", synth: synthRim, color: "#ffd23b" },
+  { name: "Shaker", category: "Davul", synth: synthShaker, color: "#ffd23b" },
+  { name: "Tom (Düşük)", category: "Davul", synth: synthTom(160, 70, 0.35), color: "#5b8bff" },
+  { name: "Tom (Orta)", category: "Davul", synth: synthTom(260, 120, 0.3), color: "#5b8bff" },
+  { name: "Crash", category: "Davul", synth: synthCrash, color: "#5b8bff" },
+  { name: "Perc Blip", category: "Davul", synth: synthPercBlip, color: "#ff5b8a" },
+  { name: "Sub Hit", category: "Bas & Efekt", synth: synthSub, color: "#8a5bff" },
+  { name: "Sub Drop", category: "Bas & Efekt", synth: synthSubDrop, color: "#8a5bff" },
+  { name: "Stab", category: "Bas & Efekt", synth: synthStab, color: "#ff7a3b" },
+  { name: "Riser", category: "Bas & Efekt", synth: synthRiser, color: "#ff7a3b" },
+  { name: "Laser Zap", category: "Bas & Efekt", synth: synthLaser, color: "#b23bff" },
+  { name: "Impact", category: "Bas & Efekt", synth: synthImpact, color: "#b23bff" },
+  { name: "Reverse Swell", category: "Bas & Efekt", synth: synthReverseSwell, color: "#b23bff" },
+  { name: "Vocal Chop", category: "Bas & Efekt", synth: synthVocalChop, color: "#00e5ff" },
 ];
+
+const STARTER_TRACK_NAMES = ["Kick", "Snare", "Hi-Hat", "Clap", "Sub Hit", "Stab"];
+
+function getLibraryBuffer(entry) {
+  if (!entry.buffer) entry.buffer = entry.synth();
+  return entry.buffer;
+}
 
 const NOTE_FREQS = {
   E1: 41.2, F1: 43.65, "F#1": 46.25, G1: 49.0, "G#1": 51.91,
@@ -321,6 +528,10 @@ const stepsSelect = document.getElementById("stepsSelect");
 const masterVolumeEl = document.getElementById("masterVolume");
 const fileInput = document.getElementById("fileInput");
 const addWobbleBtn = document.getElementById("addWobbleBtn");
+const openLibraryBtn = document.getElementById("openLibraryBtn");
+const closeLibraryBtn = document.getElementById("closeLibraryBtn");
+const libraryModal = document.getElementById("libraryModal");
+const libraryListEl = document.getElementById("libraryList");
 
 function renderAll() {
   trackListEl.innerHTML = "";
@@ -503,8 +714,10 @@ function addWobbleTrack(name) {
 }
 
 function loadBuiltinTracks() {
-  for (const s of BUILTIN_SOUNDS) {
-    const t = new SampleTrack(s.name, s.synth(), s.color);
+  for (const name of STARTER_TRACK_NAMES) {
+    const entry = SOUND_LIBRARY.find((s) => s.name === name);
+    if (!entry) continue;
+    const t = new SampleTrack(entry.name, getLibraryBuffer(entry), entry.color);
     tracks.push(t);
   }
   const wobble = new WobbleTrack("Wobble Bass", "#b23bff");
@@ -523,6 +736,58 @@ function loadBuiltinTracks() {
     const pat = patterns[t.name];
     if (pat) pat.forEach((i) => (t.steps[i] = true));
   }
+}
+
+/* ===================== Sound library modal ===================== */
+
+function renderLibrary() {
+  libraryListEl.innerHTML = "";
+  const categories = [...new Set(SOUND_LIBRARY.map((s) => s.category))];
+  for (const category of categories) {
+    const heading = document.createElement("div");
+    heading.className = "library-category";
+    heading.textContent = category;
+    libraryListEl.appendChild(heading);
+
+    for (const entry of SOUND_LIBRARY.filter((s) => s.category === category)) {
+      const row = document.createElement("div");
+      row.className = "library-item";
+      row.style.setProperty("--item-color", entry.color);
+
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = entry.name;
+
+      const previewBtn = document.createElement("button");
+      previewBtn.className = "preview-btn";
+      previewBtn.textContent = "▶";
+      previewBtn.title = "Önizle";
+      previewBtn.addEventListener("click", () => {
+        ctx.resume();
+        const src = ctx.createBufferSource();
+        src.buffer = getLibraryBuffer(entry);
+        src.connect(masterGain);
+        src.start();
+      });
+
+      const addBtn = document.createElement("button");
+      addBtn.className = "add-btn";
+      addBtn.textContent = "+ Ekle";
+      addBtn.addEventListener("click", () => {
+        addSampleTrack(entry.name, getLibraryBuffer(entry));
+      });
+
+      row.append(name, previewBtn, addBtn);
+      libraryListEl.appendChild(row);
+    }
+  }
+}
+
+function openLibrary() {
+  libraryModal.classList.remove("hidden");
+}
+function closeLibrary() {
+  libraryModal.classList.add("hidden");
 }
 
 /* ===================== Event wiring ===================== */
@@ -566,8 +831,18 @@ fileInput.addEventListener("change", async () => {
 
 addWobbleBtn.addEventListener("click", () => addWobbleTrack(`Wobble Bass ${tracks.filter((t) => t.type === "wobble").length + 1}`));
 
+openLibraryBtn.addEventListener("click", openLibrary);
+closeLibraryBtn.addEventListener("click", closeLibrary);
+libraryModal.addEventListener("click", (e) => {
+  if (e.target === libraryModal) closeLibrary();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeLibrary();
+});
+
 /* ===================== Init ===================== */
 
 setMasterVolume(parseFloat(masterVolumeEl.value));
 loadBuiltinTracks();
 renderAll();
+renderLibrary();

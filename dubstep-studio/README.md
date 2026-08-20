@@ -18,8 +18,11 @@ python3 -m http.server 8000
 
 - **Step sequencer**: 16 veya 32 adımlık desenler, çalınırken canlı playhead
   göstergesi.
-- **Hazır sesler**: Kick, Snare, Hi-Hat, Clap, Sub Hit, Stab — hepsi Web Audio
-  API ile anlık üretilir (harici ses dosyası gerekmez).
+- **Ses Kütüphanesi**: 19 hazır ses (Kick, Snare, Hi-Hat, Açık Hi-Hat, Clap,
+  Rimshot, Shaker, Tom'lar, Crash, Perc Blip, Sub Hit, Sub Drop, Stab, Riser,
+  Laser Zap, Impact, Reverse Swell, Vocal Chop) — hepsi Web Audio API ile
+  anlık üretilir (harici ses dosyası gerekmez). "🎵 Ses Kütüphanesi"
+  panelinden önizleyip istediğiniz kadar parça olarak ekleyebilirsiniz.
 - **Sınırsız ses ekleme**: "+ Ses Ekle" ile bilgisayarınızdan istediğiniz kadar
   ses dosyası (wav/mp3/ogg vb.) seçip yeni parça olarak ekleyebilirsiniz.
 - **Wobble Bass synth**: Dalga formu, nota, filtre kesim frekansı, LFO
