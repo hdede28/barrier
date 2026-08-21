@@ -5,14 +5,17 @@ HTML/CSS/JS ve Web Audio API ile yazılmıştır; kurulum veya derleme gerektirm
 
 ## Çalıştırma
 
-`index.html` dosyasını doğrudan bir tarayıcıda açmanız yeterlidir. İsterseniz
-basit bir yerel sunucu ile de açabilirsiniz:
+**En kolay yol:** İşletim sisteminize uygun başlatma betiğine çift tıklayın —
+Python varsa (çoğu Mac/Linux'ta hazır gelir, Windows'ta [python.org](https://www.python.org/downloads/)'dan kurulabilir) yerel bir sunucu başlatır ve tarayıcınızı otomatik açar.
 
-```sh
-cd dubstep-studio
-python3 -m http.server 8000
-# ardından http://localhost:8000 adresine gidin
-```
+- **Windows:** `start.bat`
+- **macOS / Linux:** `start.sh` (Finder'da sağ tık → Aç, ya da terminalde `./start.sh`)
+
+Uygulamayı kapatmak için açılan terminal/komut penceresini kapatmanız yeterli.
+
+**Alternatif:** `index.html` dosyasını doğrudan bir tarayıcıda açmayı da
+deneyebilirsiniz, ama bazı sistemlerde çift tıklama dosyayı bir tarayıcı yerine
+başka bir programla açabilir — bu durumda yukarıdaki betikleri kullanın.
 
 ## Özellikler
 
