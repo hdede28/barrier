@@ -1,0 +1,11 @@
+{
+  "name": "dubstep-studio-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android wrapper for Dubstep Studio",
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0"
+  }
+}
