@@ -304,6 +304,156 @@ function synthVocalChop() {
   return buf;
 }
 
+function synthCowbell() {
+  const buf = makeBuffer(0.3);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let p1 = 0, p2 = 0;
+  const f1 = 845, f2 = 540;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    p1 += (2 * Math.PI * f1) / sr;
+    p2 += (2 * Math.PI * f2) / sr;
+    const env = Math.exp(-t * 14);
+    data[i] = (Math.sign(Math.sin(p1)) * 0.5 + Math.sign(Math.sin(p2)) * 0.5) * env * 0.35;
+  }
+  return buf;
+}
+
+function synthSnap() {
+  const buf = makeBuffer(0.1);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const noise = (Math.random() * 2 - 1) * Math.exp(-t * 55);
+    const tone = Math.sin(2 * Math.PI * 2200 * t) * Math.exp(-t * 60);
+    data[i] = noise * 0.6 + tone * 0.3;
+  }
+  return buf;
+}
+
+function synthRide() {
+  const buf = makeBuffer(0.9);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  const partials = [1, 1.62, 2.2, 3.05];
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    let metallic = 0;
+    for (const p of partials) metallic += Math.sin(2 * Math.PI * 620 * p * t);
+    const noise = Math.random() * 2 - 1;
+    const env = Math.exp(-t * 3.5);
+    data[i] = (metallic * 0.1 + noise * 0.35) * env;
+  }
+  return buf;
+}
+
+function synthDownlifter() {
+  const dur = 1.0;
+  const buf = makeBuffer(dur);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let phase = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const progress = t / dur;
+    const freq = 800 * (1 - progress) + 60 * progress;
+    phase += (2 * Math.PI * freq) / sr;
+    const noise = Math.random() * 2 - 1;
+    const env = Math.exp(-t * 2.5) * (1 - progress * 0.3);
+    data[i] = (Math.sin(phase) * 0.5 + noise * 0.3) * env;
+  }
+  return buf;
+}
+
+function synthGlitchBlip() {
+  const buf = makeBuffer(0.15);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  const holdSamples = Math.max(1, Math.floor(sr * 0.006));
+  let val = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (i % holdSamples === 0) val = Math.random() * 2 - 1;
+    const t = i / sr;
+    const env = Math.exp(-t * 20);
+    data[i] = val * env * 0.5;
+  }
+  return buf;
+}
+
+function synthMetalHit() {
+  const buf = makeBuffer(0.5);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  const partials = [1, 2.02, 3.4, 4.9];
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    let s = 0;
+    for (const p of partials) s += Math.sin(2 * Math.PI * 300 * p * t);
+    const noise = Math.random() * 2 - 1;
+    const env = Math.exp(-t * 7);
+    data[i] = (s * 0.15 + noise * 0.3) * env;
+  }
+  return buf;
+}
+
+function synthSiren() {
+  const dur = 1.0;
+  const buf = makeBuffer(dur);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let phase = 0;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const freq = 500 + 300 * Math.sin(2 * Math.PI * 3 * t);
+    phase += (2 * Math.PI * freq) / sr;
+    const env = Math.min(1, t * 8) * Math.exp(-Math.max(0, t - 0.7) * 6);
+    data[i] = Math.sin(phase) * 0.4 * env;
+  }
+  return buf;
+}
+
+function synthAirHorn() {
+  const dur = 0.45;
+  const buf = makeBuffer(dur);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let p1 = 0, p2 = 0;
+  const f1 = 370.0, f2 = 370 * 1.006;
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    const vibrato = 1 + 0.004 * Math.sin(2 * Math.PI * 6 * t);
+    p1 += (2 * Math.PI * f1 * vibrato) / sr;
+    p2 += (2 * Math.PI * f2 * vibrato) / sr;
+    const saw1 = 2 * ((p1 / (2 * Math.PI)) % 1) - 1;
+    const saw2 = 2 * ((p2 / (2 * Math.PI)) % 1) - 1;
+    const env = Math.min(1, t * 40) * Math.exp(-Math.max(0, t - 0.28) * 14);
+    data[i] = (saw1 + saw2) * 0.28 * env;
+  }
+  return buf;
+}
+
+function synthAlarmBlip() {
+  const buf = makeBuffer(0.3);
+  const data = buf.getChannelData(0);
+  const sr = ctx.sampleRate;
+  let phase = 0;
+  const freq = 1200;
+  const bursts = [0, 0.15];
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sr;
+    phase += (2 * Math.PI * freq) / sr;
+    let env = 0;
+    for (const b of bursts) {
+      const lt = t - b;
+      if (lt >= 0 && lt < 0.08) env = Math.max(env, Math.exp(-lt * 35));
+    }
+    data[i] = Math.sin(phase) * 0.4 * env;
+  }
+  return buf;
+}
+
 const SOUND_LIBRARY = [
   { name: "Kick", category: "Davul", synth: synthKick, color: "#00e5ff" },
   { name: "Snare", category: "Davul", synth: synthSnare, color: "#ff3b9a" },
@@ -311,20 +461,33 @@ const SOUND_LIBRARY = [
   { name: "Açık Hi-Hat", category: "Davul", synth: synthOpenHat, color: "#39ff9c" },
   { name: "Clap", category: "Davul", synth: synthClap, color: "#ffd23b" },
   { name: "Rimshot", category: "Davul", synth: synthRim, color: "#ffd23b" },
+  { name: "Snap", category: "Davul", synth: synthSnap, color: "#ffd23b" },
   { name: "Shaker", category: "Davul", synth: synthShaker, color: "#ffd23b" },
+  { name: "Cowbell", category: "Davul", synth: synthCowbell, color: "#ffd23b" },
   { name: "Tom (Düşük)", category: "Davul", synth: synthTom(160, 70, 0.35), color: "#5b8bff" },
   { name: "Tom (Orta)", category: "Davul", synth: synthTom(260, 120, 0.3), color: "#5b8bff" },
+  { name: "Tom (Yüksek)", category: "Davul", synth: synthTom(380, 180, 0.25), color: "#5b8bff" },
+  { name: "Conga", category: "Davul", synth: synthTom(300, 190, 0.22), color: "#5b8bff" },
+  { name: "Timbale", category: "Davul", synth: synthTom(500, 260, 0.18), color: "#5b8bff" },
   { name: "Crash", category: "Davul", synth: synthCrash, color: "#5b8bff" },
+  { name: "Ride", category: "Davul", synth: synthRide, color: "#5b8bff" },
   { name: "Perc Blip", category: "Davul", synth: synthPercBlip, color: "#ff5b8a" },
   { name: "Sub Hit", category: "Bas & Efekt", synth: synthSub, color: "#8a5bff" },
   { name: "Sub Drop", category: "Bas & Efekt", synth: synthSubDrop, color: "#8a5bff" },
   { name: "Stab", category: "Bas & Efekt", synth: synthStab, color: "#ff7a3b" },
   { name: "Riser", category: "Bas & Efekt", synth: synthRiser, color: "#ff7a3b" },
+  { name: "Downlifter", category: "Bas & Efekt", synth: synthDownlifter, color: "#ff7a3b" },
   { name: "Laser Zap", category: "Bas & Efekt", synth: synthLaser, color: "#b23bff" },
   { name: "Impact", category: "Bas & Efekt", synth: synthImpact, color: "#b23bff" },
+  { name: "Metal Hit", category: "Bas & Efekt", synth: synthMetalHit, color: "#b23bff" },
   { name: "Reverse Swell", category: "Bas & Efekt", synth: synthReverseSwell, color: "#b23bff" },
   { name: "Vocal Chop", category: "Bas & Efekt", synth: synthVocalChop, color: "#00e5ff" },
+  { name: "Glitch Blip", category: "Bas & Efekt", synth: synthGlitchBlip, color: "#00e5ff" },
+  { name: "Siren", category: "Bas & Efekt", synth: synthSiren, color: "#39ff9c" },
+  { name: "Air Horn", category: "Bas & Efekt", synth: synthAirHorn, color: "#39ff9c" },
+  { name: "Alarm Blip", category: "Bas & Efekt", synth: synthAlarmBlip, color: "#39ff9c" },
 ];
+SOUND_LIBRARY.forEach((e) => (e.kind = "sample"));
 
 const STARTER_TRACK_NAMES = ["Kick", "Snare", "Hi-Hat", "Clap", "Sub Hit", "Stab"];
 
@@ -336,6 +499,29 @@ function getLibraryBuffer(entry) {
 const NOTE_FREQS = {
   E1: 41.2, F1: 43.65, "F#1": 46.25, G1: 49.0, "G#1": 51.91,
   A1: 55.0, "A#1": 58.27, B1: 61.74, C2: 65.41, D2: 73.42, E2: 82.41,
+};
+
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+function midiToFreq(m) {
+  return 440 * Math.pow(2, (m - 69) / 12);
+}
+const NOTE_FULL_FREQS = {};
+const NOTE_FULL_LIST = [];
+for (let m = 36; m <= 84; m++) {
+  const name = NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1);
+  NOTE_FULL_FREQS[name] = midiToFreq(m);
+  NOTE_FULL_LIST.push(name);
+}
+
+const INSTRUMENT_PRESETS = {
+  lead: { label: "Lead Synth", waveform: "sawtooth", unison: [-9, 9], cutoff: 3200, q: 1, attack: 0.004, release: 0.28 },
+  pluck: { label: "Pluck", waveform: "triangle", unison: [0], cutoff: 2600, q: 0.6, attack: 0.001, release: 0.2 },
+  bell: { label: "FM Bell", fm: true, ratio: 3.01, index: 4, attack: 0.001, release: 1.3 },
+  pad: { label: "Pad / Choir", waveform: "sawtooth", unison: [-14, -5, 5, 14], cutoff: 1600, q: 0.4, attack: 0.4, release: 1.6 },
+  brass: { label: "Brass Stab", waveform: "sawtooth", unison: [-6, 6], cutoff: 1100, q: 5, attack: 0.035, release: 0.4 },
+  marimba: { label: "Marimba", waveform: "sine", unison: [0], cutoff: 6500, q: 0.3, attack: 0.001, release: 0.35 },
+  organ: { label: "Org", waveform: "square", unison: [-1200, 0, 700, 1200], cutoff: 5200, q: 0.2, attack: 0.008, release: 0.3 },
+  bass808: { label: "808 Bass", waveform: "sine", unison: [0], cutoff: 500, q: 0.4, attack: 0.004, release: 1.0, pitchDrop: true },
 };
 
 const TRACK_COLORS = ["#00e5ff", "#b23bff", "#ff3b9a", "#39ff9c", "#ffd23b", "#ff7a3b", "#5b8bff", "#ff5b8a"];
@@ -446,6 +632,117 @@ class WobbleTrack extends Track {
   }
 }
 
+class InstrumentTrack extends Track {
+  constructor(name, presetKey, color) {
+    super(name, color);
+    this.type = "instrument";
+    this.presetKey = presetKey;
+    this.preset = INSTRUMENT_PRESETS[presetKey];
+    this.note = "C3";
+    this.attack = this.preset.attack;
+    this.release = this.preset.release;
+
+    this.filter = ctx.createBiquadFilter();
+    this.filter.type = "lowpass";
+    this.filter.frequency.value = this.preset.cutoff || 4000;
+    this.filter.Q.value = this.preset.q != null ? this.preset.q : 1;
+
+    this.envGain = ctx.createGain();
+    this.envGain.gain.value = 0;
+    this.filter.connect(this.envGain);
+    this.envGain.connect(this.gain);
+
+    this.oscillators = [];
+    this.modOsc = null;
+    this.modGain = null;
+
+    if (this.preset.fm) {
+      const carrier = ctx.createOscillator();
+      carrier.type = "sine";
+      const modulator = ctx.createOscillator();
+      modulator.type = "sine";
+      const modGain = ctx.createGain();
+      modulator.connect(modGain);
+      modGain.connect(carrier.frequency);
+      carrier.connect(this.filter);
+      carrier.start();
+      modulator.start();
+      this.oscillators.push(carrier);
+      this.modOsc = modulator;
+      this.modGain = modGain;
+    } else {
+      for (const det of this.preset.unison) {
+        const osc = ctx.createOscillator();
+        osc.type = this.preset.waveform;
+        osc.detune.value = det;
+        osc.connect(this.filter);
+        osc.start();
+        this.oscillators.push(osc);
+      }
+    }
+    this.setNote(this.note);
+  }
+  setNote(n) {
+    this.note = n;
+    const freq = NOTE_FULL_FREQS[n];
+    const now = ctx.currentTime;
+    if (this.preset.fm) {
+      this.oscillators[0].frequency.setTargetAtTime(freq, now, 0.01);
+      this.modOsc.frequency.setTargetAtTime(freq * this.preset.ratio, now, 0.01);
+      this.modGain.gain.setTargetAtTime(freq * this.preset.index, now, 0.01);
+    } else {
+      for (const osc of this.oscillators) osc.frequency.setTargetAtTime(freq, now, 0.01);
+    }
+  }
+  setRelease(v) {
+    this.release = v;
+  }
+  trigger(time) {
+    const g = this.envGain.gain;
+    const stepDur = (60 / bpm) / 4;
+    const a = Math.min(this.attack, stepDur * 0.4);
+    const r = Math.max(0.02, Math.min(this.release, stepDur * 6));
+    g.cancelScheduledValues(time);
+    g.setValueAtTime(0.0001, time);
+    g.linearRampToValueAtTime(1, time + a);
+    g.exponentialRampToValueAtTime(0.0001, time + a + r);
+
+    if (this.preset.pitchDrop) {
+      const freq = NOTE_FULL_FREQS[this.note];
+      const osc = this.oscillators[0];
+      osc.frequency.cancelScheduledValues(time);
+      osc.frequency.setValueAtTime(freq * 3.2, time);
+      osc.frequency.exponentialRampToValueAtTime(freq, time + 0.09);
+    }
+  }
+}
+
+function previewInstrument(presetKey) {
+  const temp = new InstrumentTrack("preview", presetKey, "#ffffff");
+  temp.trigger(ctx.currentTime);
+  const cleanupDelay = (temp.attack + temp.release) * 1000 + 500;
+  setTimeout(() => {
+    temp.oscillators.forEach((o) => {
+      try { o.stop(); } catch (e) {}
+    });
+    if (temp.modOsc) {
+      try { temp.modOsc.stop(); } catch (e) {}
+    }
+    temp.gain.disconnect();
+  }, cleanupDelay);
+}
+
+function previewWobble() {
+  const temp = new WobbleTrack("preview", "#b23bff");
+  temp.trigger(ctx.currentTime);
+  const cleanupDelay = (temp.attack + temp.release) * 1000 + 500;
+  setTimeout(() => {
+    try { temp.osc.stop(); } catch (e) {}
+    try { temp.lfo.stop(); } catch (e) {}
+    temp.gain.disconnect();
+  }, cleanupDelay);
+}
+
 /* ===================== Sequencer / scheduler ===================== */
 
 let bpm = 140;
@@ -553,7 +850,8 @@ function renderTrack(track) {
 
   const typeTag = document.createElement("span");
   typeTag.className = "tag";
-  typeTag.textContent = track.type === "wobble" ? "Wobble" : "Örnek";
+  typeTag.textContent =
+    track.type === "wobble" ? "Wobble" : track.type === "instrument" ? track.preset.label : "Örnek";
 
   const muteBtn = document.createElement("button");
   muteBtn.className = "mini-btn mute" + (track.muted ? " active" : "");
@@ -596,6 +894,8 @@ function renderTrack(track) {
     track.gain.disconnect();
     if (track.osc) { try { track.osc.stop(); } catch (e) {} }
     if (track.lfo) { try { track.lfo.stop(); } catch (e) {} }
+    if (track.oscillators) { track.oscillators.forEach((o) => { try { o.stop(); } catch (e) {} }); }
+    if (track.modOsc) { try { track.modOsc.stop(); } catch (e) {} }
     renderAll();
   });
 
@@ -604,6 +904,8 @@ function renderTrack(track) {
 
   if (track.type === "wobble") {
     row.appendChild(renderSynthControls(track));
+  } else if (track.type === "instrument") {
+    row.appendChild(renderInstrumentControls(track));
   }
 
   row.appendChild(renderSteps(track));
@@ -677,6 +979,38 @@ function renderSynthControls(track) {
   return wrap;
 }
 
+function renderInstrumentControls(track) {
+  const wrap = document.createElement("div");
+  wrap.className = "synth-controls";
+
+  const noteLabel = document.createElement("label");
+  noteLabel.textContent = "Nota";
+  const noteSelect = document.createElement("select");
+  NOTE_FULL_LIST.forEach((n) => {
+    const opt = document.createElement("option");
+    opt.value = n;
+    opt.textContent = n;
+    if (n === track.note) opt.selected = true;
+    noteSelect.appendChild(opt);
+  });
+  noteSelect.addEventListener("change", () => track.setNote(noteSelect.value));
+  noteLabel.appendChild(noteSelect);
+
+  const releaseLabel = document.createElement("label");
+  releaseLabel.textContent = "Uzunluk (sn)";
+  const releaseInput = document.createElement("input");
+  releaseInput.type = "range";
+  releaseInput.min = "0.05";
+  releaseInput.max = "2.5";
+  releaseInput.step = "0.05";
+  releaseInput.value = String(track.release);
+  releaseInput.addEventListener("input", () => track.setRelease(parseFloat(releaseInput.value)));
+  releaseLabel.appendChild(releaseInput);
+
+  wrap.append(noteLabel, releaseLabel);
+  return wrap;
+}
+
 function renderSteps(track) {
   const grid = document.createElement("div");
   grid.className = "steps";
@@ -713,6 +1047,13 @@ function addWobbleTrack(name) {
   return t;
 }
 
+function addInstrumentTrack(name, presetKey) {
+  const t = new InstrumentTrack(name, presetKey, nextColor());
+  tracks.push(t);
+  renderAll();
+  return t;
+}
+
 function loadBuiltinTracks() {
   for (const name of STARTER_TRACK_NAMES) {
     const entry = SOUND_LIBRARY.find((s) => s.name === name);
@@ -740,16 +1081,27 @@ function loadBuiltinTracks() {
 
 /* ===================== Sound library modal ===================== */
 
+const INSTRUMENT_LIBRARY = Object.entries(INSTRUMENT_PRESETS).map(([key, preset], i) => ({
+  kind: "instrument",
+  presetKey: key,
+  name: preset.label,
+  category: "Enstrüman",
+  color: TRACK_COLORS[(i + 3) % TRACK_COLORS.length],
+}));
+INSTRUMENT_LIBRARY.push({ kind: "wobble", name: "Wobble Bass", category: "Enstrüman", color: "#b23bff" });
+
+const ALL_LIBRARY = [...SOUND_LIBRARY, ...INSTRUMENT_LIBRARY];
+
 function renderLibrary() {
   libraryListEl.innerHTML = "";
-  const categories = [...new Set(SOUND_LIBRARY.map((s) => s.category))];
+  const categories = [...new Set(ALL_LIBRARY.map((s) => s.category))];
   for (const category of categories) {
     const heading = document.createElement("div");
     heading.className = "library-category";
     heading.textContent = category;
     libraryListEl.appendChild(heading);
 
-    for (const entry of SOUND_LIBRARY.filter((s) => s.category === category)) {
+    for (const entry of ALL_LIBRARY.filter((s) => s.category === category)) {
       const row = document.createElement("div");
       row.className = "library-item";
       row.style.setProperty("--item-color", entry.color);
@@ -764,17 +1116,29 @@ function renderLibrary() {
       previewBtn.title = "Önizle";
       previewBtn.addEventListener("click", () => {
         ctx.resume();
-        const src = ctx.createBufferSource();
-        src.buffer = getLibraryBuffer(entry);
-        src.connect(masterGain);
-        src.start();
+        if (entry.kind === "sample") {
+          const src = ctx.createBufferSource();
+          src.buffer = getLibraryBuffer(entry);
+          src.connect(masterGain);
+          src.start();
+        } else if (entry.kind === "instrument") {
+          previewInstrument(entry.presetKey);
+        } else if (entry.kind === "wobble") {
+          previewWobble();
+        }
       });
 
       const addBtn = document.createElement("button");
       addBtn.className = "add-btn";
       addBtn.textContent = "+ Ekle";
       addBtn.addEventListener("click", () => {
-        addSampleTrack(entry.name, getLibraryBuffer(entry));
+        if (entry.kind === "sample") {
+          addSampleTrack(entry.name, getLibraryBuffer(entry));
+        } else if (entry.kind === "instrument") {
+          addInstrumentTrack(entry.name, entry.presetKey);
+        } else if (entry.kind === "wobble") {
+          addWobbleTrack(`Wobble Bass ${tracks.filter((t) => t.type === "wobble").length + 1}`);
+        }
       });
 
       row.append(name, previewBtn, addBtn);
