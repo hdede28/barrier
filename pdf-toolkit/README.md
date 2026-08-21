@@ -27,6 +27,7 @@ her ekranında görünür şekilde gösterilir.
 ## İçindekiler
 
 - [Hızlı başlangıç (tek komut)](#hızlı-başlangıç-tek-komut)
+- [Masaüstü uygulaması](desktop/README.md)
 - [Mimari](#mimari)
 - [Veri konumu ve yerellik](#veri-konumu-ve-yerellik)
 - [İzinler ve güvenlik](#i̇zinler-ve-güvenlik)
@@ -49,6 +50,13 @@ Bu tek komut şunları başlatır:
 - **PostgreSQL 16** — meta veri (belgeler, sürümler, olaylar, imza istekleri)
 - **Backend (FastAPI)** — `http://localhost:8000` — LibreOffice ve OCR araçlarıyla birlikte
 - **Frontend (Next.js)** — `http://localhost:3000` — uygulamanın kendisi
+
+### Alternatif: Masaüstü uygulaması
+
+Terminale hiç dokunmadan çift-tıkla çalıştırmak isterseniz `desktop/` altındaki Electron
+sarmalayıcıyı kullanabilirsiniz — aynı docker-compose yığınını arka planda başlatıp Velyo
+arayüzünü bir masaüstü penceresinde açar (Docker Desktop kurulu olmalıdır). Ayrıntılar için
+[`desktop/README.md`](desktop/README.md) dosyasına bakın.
 
 Tarayıcınızda `http://localhost:3000` adresini açın. İlk çalıştırmada veritabanı şeması
 otomatik olarak oluşturulur (backend başlangıcında `Base.metadata.create_all` çalışır — ayrı
@@ -73,6 +81,7 @@ pdf-toolkit/
 │   ├── app/                    sayfalar (belgeler, belge detayı, imza akışı, olay günlüğü)
 │   ├── components/              yeniden kullanılabilir UI parçaları
 │   └── brand/                   Velyo marka kiti (tasarım tokenları, kaynak referans)
+├── desktop/             Electron masaüstü sarmalayıcı (docker-compose'u başlatıp pencerede gösterir)
 ├── docker-compose.yml
 └── .env.example
 ```
@@ -184,6 +193,15 @@ createdb pdftoolkit_test -O pdftoolkit
 
 DATABASE_URL="postgresql+psycopg://pdftoolkit:pdftoolkit@localhost:5432/pdftoolkit_test" \
   python -m pytest tests/ -v
+```
+
+Masaüstü sarmalayıcının başlatma/hata mantığı (`desktop/orchestrator.js`) için Docker veya
+Electron gerektirmeyen bağımsız testler:
+
+```bash
+cd desktop
+npm install
+npm test
 ```
 
 Kapsam: her temel dönüşüm (birleştir, böl, yeniden sırala, döndür, sıkıştır) için odaklı

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+<title>Velyo</title>
+<style>
+  :root {
+    --background: #0a1020;
+    --surface: #121b31;
+    --foreground: #f6f8ff;
+    --muted: #aeb9d0;
+    --border: rgba(174, 185, 208, 0.18);
+    --accent-gradient: linear-gradient(135deg, #9a5bff 0%, #6d5dfb 42%, #2f6bff 100%);
+    --danger: #f06b7a;
+    --warn: #f6b94a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    -webkit-app-region: drag;
+  }
+  .card {
+    width: 480px;
+    max-width: 90vw;
+    text-align: center;
+    -webkit-app-region: no-drag;
+  }
+  .logo {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 4px;
+  }
+  .tagline { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+  .spinner {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+    border-top-color: #8b5cf6;
+    animation: spin 0.9s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status { font-size: 14px; color: var(--foreground); min-height: 20px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+  .error-box {
+    display: none;
+    text-align: left;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-top: 8px;
+  }
+  .error-box.visible { display: block; }
+  .error-title { color: var(--danger); font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+  .error-body { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .actions { margin-top: 16px; display: flex; gap: 8px; justify-content: flex-start; }
+  button {
+    -webkit-app-region: no-drag;
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .btn-primary { background-image: var(--accent-gradient); color: white; }
+  .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--foreground); }
+  .log {
+    margin-top: 12px;
+    max-height: 140px;
+    overflow-y: auto;
+    background: #060914;
+    border-radius: 10px;
+    padding: 10px;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: left;
+    white-space: pre-wrap;
+    display: none;
+  }
+  .log.visible { display: block; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Velyo</div>
+    <div class="tagline">Belgeler, akışında.</div>
+    <div id="spinner" class="spinner"></div>
+    <div id="status" class="status">Başlatılıyor…</div>
+    <div id="hint" class="hint"></div>
+
+    <div id="errorBox" class="error-box">
+      <div id="errorTitle" class="error-title">Bir sorun oluştu</div>
+      <div id="errorBody" class="error-body"></div>
+      <div class="actions">
+        <button id="retryBtn" class="btn-primary">Tekrar Dene</button>
+        <button id="dockerBtn" class="btn-secondary" style="display:none">Docker Desktop'ı indir</button>
+        <button id="logToggle" class="btn-secondary">Günlüğü göster</button>
+      </div>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script src="splash.js"></script>
+</body>
+</html>

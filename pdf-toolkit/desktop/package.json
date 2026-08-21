@@ -1,0 +1,51 @@
+{
+  "name": "velyo-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Velyo masaüstü uygulaması — yerel PDF çalışma alanını Docker Compose üzerinden başlatıp bir masaüstü penceresinde gösterir.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node orchestrator.test.js",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.velyo.desktop",
+    "productName": "Velyo",
+    "icon": "build/icon.png",
+    "files": [
+      "main.js",
+      "preload.js",
+      "orchestrator.js",
+      "splash.html",
+      "splash.js"
+    ],
+    "extraResources": [
+      {
+        "from": "..",
+        "to": "pdf-toolkit",
+        "filter": [
+          "docker-compose.yml",
+          ".env.example",
+          "backend/**/*",
+          "frontend/**/*",
+          "!backend/.venv",
+          "!backend/data",
+          "!backend/_test_data",
+          "!backend/.pytest_cache",
+          "!backend/**/__pycache__",
+          "!frontend/node_modules",
+          "!frontend/.next",
+          "!desktop/**"
+        ]
+      }
+    ],
+    "mac": { "target": "dmg", "category": "public.app-category.productivity" },
+    "win": { "target": "nsis" },
+    "linux": { "target": "AppImage", "category": "Office" }
+  }
+}
