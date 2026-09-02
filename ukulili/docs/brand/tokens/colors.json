@@ -1,0 +1,251 @@
+{
+  "name": "Ukulili Color Tokens",
+  "version": "1.2.0",
+  "note": "Tek dogruluk kaynagi. core/designsystem/Color.kt bu dosyadan turetilir. Tum oranlar tools/check-contrast.py ile dogrulandi.",
+  "brand": {
+    "mango": {
+      "50": "#FFF3EA",
+      "100": "#FFE0CC",
+      "200": "#FFC199",
+      "300": "#FFA366",
+      "400": "#FF8C47",
+      "500": "#FF7A2F",
+      "600": "#E85F14",
+      "700": "#C24E12",
+      "800": "#8F390D",
+      "900": "#5C2408",
+      "core": "500",
+      "role": "primary",
+      "fillTone": "500",
+      "onFill": "#1B1B1F",
+      "textOnLight": "800",
+      "textOnOwnContainer": "800",
+      "note": "Mango 700 beyazda 4.78 gecer ama uygulamanin gercek zemini Cloud100 (#F5F5F8); orada 4.39 ile AA alti kalir. Bu yuzden metin tonu 800."
+    },
+    "lagoon": {
+      "50": "#E6FAF8",
+      "100": "#C0F2EE",
+      "200": "#7FE3DB",
+      "300": "#4FD1C7",
+      "400": "#22C1B5",
+      "500": "#0FB5AE",
+      "600": "#0C948F",
+      "700": "#0A7570",
+      "800": "#075754",
+      "900": "#043836",
+      "core": "500",
+      "role": "secondary",
+      "fillTone": "500",
+      "onFill": "#1B1B1F",
+      "textOnLight": "700",
+      "textOnOwnContainer": "700"
+    },
+    "sunbeam": {
+      "100": "#FFF0BF",
+      "200": "#FFE180",
+      "300": "#FFD35C",
+      "400": "#FFC53D",
+      "500": "#F5B31A",
+      "600": "#D19312",
+      "700": "#A3720C",
+      "800": "#755108",
+      "900": "#4A3305",
+      "core": "500",
+      "role": "accent",
+      "fillTone": "400",
+      "onFill": "#1B1B1F",
+      "textOnLight": "800",
+      "textOnOwnContainer": "800",
+      "warning": "Sunbeam 700 beyazda 4.23:1 - AA alti. Metin icin daima 800 kullan."
+    },
+    "leaf": {
+      "100": "#DFF7E7",
+      "300": "#8FE0AC",
+      "500": "#3DBE6C",
+      "700": "#248045",
+      "800": "#1C6635",
+      "core": "500",
+      "fillTone": "500",
+      "onFill": "#1B1B1F",
+      "textOnLight": "800",
+      "textOnOwnContainer": "800"
+    },
+    "grape": {
+      "100": "#EDE9FE",
+      "300": "#C4B5FD",
+      "500": "#8B5CF6",
+      "600": "#7C3AED",
+      "700": "#6D28D9",
+      "core": "500",
+      "fillTone": "600",
+      "onFill": "#FFFFFF",
+      "textOnLight": "700",
+      "textOnOwnContainer": "700",
+      "warning": "Grape 500 uzerinde ne beyaz (4.23) ne Ink900 (4.05) AA geciyor. Dolgu icin 600 kullan; 500 sadece kimlik rengi."
+    },
+    "koa": {
+      "500": "#8A5A3B",
+      "core": "500",
+      "role": "decorative-only",
+      "note": "Sadece ahsap doku ve illustrasyon detayi. Metin tasimaz."
+    }
+  },
+  "difficulty": {
+    "easy": {
+      "label": {
+        "tr": "Kolay",
+        "en": "Easy"
+      },
+      "level": 1,
+      "icon": "note-single",
+      "identity": "#3DBE6C",
+      "fill": "#3DBE6C",
+      "onFill": "#1B1B1F",
+      "container": "#DFF7E7",
+      "onContainer": "#1C6635"
+    },
+    "medium": {
+      "label": {
+        "tr": "Orta",
+        "en": "Medium"
+      },
+      "level": 2,
+      "icon": "note-double",
+      "identity": "#FFC53D",
+      "fill": "#FFC53D",
+      "onFill": "#1B1B1F",
+      "container": "#FFF0BF",
+      "onContainer": "#755108"
+    },
+    "hard": {
+      "label": {
+        "tr": "Zor",
+        "en": "Hard"
+      },
+      "level": 3,
+      "icon": "note-triple",
+      "identity": "#8B5CF6",
+      "fill": "#7C3AED",
+      "onFill": "#FFFFFF",
+      "container": "#EDE9FE",
+      "onContainer": "#6D28D9"
+    },
+    "a11yRule": "Zorluk asla yalnizca renkle anlatilmaz; her zaman ikon + etiket eslik eder."
+  },
+  "semantic": {
+    "success": {
+      "fill": "#3DBE6C",
+      "onFill": "#1B1B1F",
+      "text": "#1C6635"
+    },
+    "warning": {
+      "fill": "#FFB020",
+      "onFill": "#1B1B1F",
+      "text": "#755108"
+    },
+    "error": {
+      "fill": "#C4282D",
+      "onFill": "#FFFFFF",
+      "text": "#C4282D",
+      "iconOnly": "#E5484D"
+    },
+    "info": {
+      "fill": "#0A7570",
+      "onFill": "#FFFFFF",
+      "text": "#0A7570"
+    },
+    "errorRule": "Error rengi sadece sistem hatalari icin (mikrofon izni vb.). Kullanicinin calisi icin ASLA kullanilmaz.",
+    "iconOnlyRule": "#E5484D uzerinde metin tasinamaz (beyaz 3.91, Ink900 4.39). Sadece ikon ve kenarlik."
+  },
+  "neutral": {
+    "ink900": "#1B1B1F",
+    "ink700": "#3A3A42",
+    "slate500": "#6E6E7A",
+    "mist200": "#E4E4EA",
+    "cloud100": "#F5F5F8",
+    "white": "#FFFFFF"
+  },
+  "theme": {
+    "light": {
+      "background": "#F5F5F8",
+      "surface": "#FFFFFF",
+      "onSurface": "#1B1B1F",
+      "onSurfaceVariant": "#6E6E7A",
+      "outline": "#E4E4EA",
+      "primary": "#FF7A2F",
+      "onPrimary": "#1B1B1F",
+      "primaryText": "#8F390D",
+      "primaryContainer": "#FFF3EA",
+      "onPrimaryContainer": "#8F390D",
+      "secondary": "#0FB5AE",
+      "onSecondary": "#1B1B1F",
+      "secondaryText": "#0A7570",
+      "secondaryContainer": "#E6FAF8",
+      "onSecondaryContainer": "#0A7570",
+      "accent": "#FFC53D",
+      "onAccent": "#1B1B1F",
+      "accentText": "#755108"
+    },
+    "dark": {
+      "background": "#121216",
+      "surface": "#1D1D23",
+      "onSurface": "#F5F5F8",
+      "onSurfaceVariant": "#A0A0AC",
+      "outline": "#3A3A42",
+      "primary": "#FFA366",
+      "onPrimary": "#1B1B1F",
+      "primaryText": "#FFA366",
+      "primaryContainer": "#5C2408",
+      "onPrimaryContainer": "#FFC199",
+      "secondary": "#4FD1C7",
+      "onSecondary": "#1B1B1F",
+      "secondaryText": "#4FD1C7",
+      "secondaryContainer": "#043836",
+      "onSecondaryContainer": "#7FE3DB",
+      "accent": "#FFD35C",
+      "onAccent": "#1B1B1F",
+      "accentText": "#FFD35C"
+    },
+    "onFillRule": "Marka dolgulari uzerinde metin DAIMA Ink900. Beyaz metin Mango500'de 2.60:1, Lagoon500'de 2.55:1 - ikisi de basarisiz."
+  },
+  "tuner": {
+    "inTune": {
+      "color": "#3DBE6C",
+      "range": "0-5 cents",
+      "label": {
+        "tr": "Tamam",
+        "en": "In tune"
+      }
+    },
+    "near": {
+      "color": "#FF7A2F",
+      "range": "5-25 cents",
+      "label": {
+        "tr": "Yakin",
+        "en": "Close"
+      }
+    },
+    "far": {
+      "color": "#E5484D",
+      "range": ">25 cents",
+      "label": {
+        "tr": "Uzak",
+        "en": "Off"
+      }
+    },
+    "idle": {
+      "color": "#6E6E7A",
+      "range": "sinyal yok",
+      "label": {
+        "tr": "Dinliyor",
+        "en": "Listening"
+      }
+    },
+    "a11yRule": "Akort durumu renkle birlikte metin etiketi ve ibre konumuyla da anlatilir."
+  },
+  "verification": {
+    "tool": "docs/brand/tools/check-contrast.py",
+    "standard": "WCAG 2.1 AA, normal metin 4.5:1",
+    "runInCI": true
+  }
+}
