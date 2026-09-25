@@ -75,7 +75,18 @@
     <!-- DASHBOARD -->
     <section id="screen-dashboard" class="screen">
       <h2>Panelim</h2>
-      <p>Mevcut seviyen: <strong id="dashLevel">—</strong> <button class="btn btn-link" id="btnRetakeTest">Testi Tekrar Al</button></p>
+      <p>
+        Mevcut seviyen: <strong id="dashLevel">—</strong>
+        <button class="btn btn-link" id="btnRetakeTest">Testi Tekrar Al</button>
+      </p>
+      <p>
+        Hızlı test için seviye seç:
+        <select id="levelSelect">
+          <option value="beginner">Başlangıç</option>
+          <option value="intermediate">Orta</option>
+          <option value="advanced">İleri</option>
+        </select>
+      </p>
       <div class="card-grid">
         <div class="skill-card" data-skill="reading"><div class="skill-icon">📖</div><h3>Okuma</h3><p>Metni oku, soruları cevapla.</p></div>
         <div class="skill-card" data-skill="writing"><div class="skill-icon">✍️</div><h3>Yazma</h3><p>Boşlukları doğru doldur.</p></div>

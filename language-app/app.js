@@ -153,17 +153,20 @@ function finishPlacementTest() {
 // DASHBOARD
 // ------------------------------------------------------------------
 function goDashboard() {
-  document.getElementById("dashLevel").textContent = state.level
-    ? LEVEL_LABELS[state.level]
-    : "Belirlenmedi";
+  if (!state.level) state.level = "intermediate";
+  document.getElementById("dashLevel").textContent = LEVEL_LABELS[state.level];
+  document.getElementById("levelSelect").value = state.level;
+  saveState();
+  renderStats();
   showScreen("screen-dashboard");
 }
 
 function ensureLevel() {
   if (!state.level) {
-    toast("Önce seviye belirleme testini tamamla.");
-    startPlacementTest();
-    return false;
+    state.level = "intermediate";
+    saveState();
+    renderStats();
+    toast("Seviye testi atlandı, varsayılan olarak 'Orta Seviye' ayarlandı.");
   }
   return true;
 }
@@ -515,6 +518,12 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnStartPlacement").onclick = startPlacementTest;
   document.getElementById("btnGoDashboard").onclick = goDashboard;
   document.getElementById("btnRetakeTest").onclick = startPlacementTest;
+  document.getElementById("levelSelect").onchange = (e) => {
+    state.level = e.target.value;
+    saveState();
+    goDashboard();
+    toast("Seviye değiştirildi: " + LEVEL_LABELS[state.level]);
+  };
 
   document.querySelectorAll(".skill-card").forEach((card) => {
     card.addEventListener("click", () => openSkill(card.dataset.skill));
