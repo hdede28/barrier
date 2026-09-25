@@ -6,18 +6,22 @@ pronunciation checker built on the browser's Web Speech API.
 
 ## Run it
 
-No build step or server required — just open `index.html` in a modern
-browser (Chrome/Edge recommended for speech recognition support):
+No build step or server required.
+
+**Easiest way:** double-click `LinguaPath Başlat.command` (macOS) — it opens
+`index.html` straight in Chrome. Everything works this way, including
+microphone-based pronunciation checking: Chrome treats `file://` pages as a
+secure context, so `SpeechRecognition` isn't blocked the way it is over
+plain `http://`.
+
+You can also just double-click `index.html` itself, or serve it if you
+prefer:
 
 ```bash
 cd language-app
 python3 -m http.server 8000
 # then open http://localhost:8000
 ```
-
-Opening `index.html` directly (`file://`) also works for everything except
-speech recognition, which most browsers restrict to `http(s)://` or
-`localhost` origins.
 
 ## Features
 
