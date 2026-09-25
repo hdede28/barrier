@@ -151,11 +151,17 @@
         Bu anahtarlar yalnızca sizin tarayıcınızda (localStorage) saklanır, hiçbir sunucuya gönderilmez.
       </p>
 
-      <label class="settings-label">Words API (RapidAPI) anahtarı — Yazma modülünde eş anlamlı kelime önerisi için</label>
+      <div id="nltkStatusBox" class="api-result-box">NLTK sunucusu kontrol ediliyor…</div>
+      <p class="tip-text">
+        NLTK sunucusu çalışırken eş anlamlı kelime, cümle analizi, telaffuz ve okunabilirlik özellikleri
+        <strong>ücretsiz ve anahtarsız</strong> çalışır. Kurulum: <code>language-app/server/README.md</code>
+      </p>
+
+      <label class="settings-label">Words API (RapidAPI) anahtarı — NLTK sunucusu çalışmıyorsa yedek olarak eş anlamlı kelime önerisi için</label>
       <input type="text" id="rapidApiKeyInput" class="settings-input" placeholder="RapidAPI key" />
       <p class="tip-text">Ücretsiz anahtar: <a href="https://rapidapi.com/dpventures/api/wordsapi" target="_blank" rel="noopener">rapidapi.com/dpventures/api/wordsapi</a></p>
 
-      <label class="settings-label">Google Cloud Natural Language API anahtarı — Cümle/sözdizimi analizi için</label>
+      <label class="settings-label">Google Cloud Natural Language API anahtarı — NLTK sunucusu çalışmıyorsa yedek olarak cümle/sözdizimi analizi için</label>
       <input type="text" id="googleNlKeyInput" class="settings-input" placeholder="Google Cloud API key" />
       <p class="tip-text">Ücretsiz anahtar: <a href="https://cloud.google.com/natural-language/docs/setup" target="_blank" rel="noopener">cloud.google.com/natural-language</a></p>
 

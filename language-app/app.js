@@ -237,7 +237,11 @@ function openReading() {
     <h3>${passage.title}</h3>
     <div class="passage-text" id="passageText">${makeClickableText(passage.text)}</div>
     <button class="inline-btn" id="btnTranslatePassage">🌐 Türkçeye Çevir</button>
+    <button class="inline-btn" id="btnReadability">📊 Zorluk Seviyesini Ölç (NLTK)</button>
+    <button class="inline-btn" id="btnGenCloze">🧩 Bu Metinden Alıştırma Üret (NLTK)</button>
     <div id="translationBox"></div>
+    <div id="readabilityBox"></div>
+    <div id="clozeBox"></div>
     <div id="readingQuestions"></div>
   `;
   wireClickableWords(document.getElementById("passageText"));
@@ -253,6 +257,49 @@ function openReading() {
     box.innerHTML = translated
       ? `<div class="api-result-box">${translated}</div>`
       : `<div class="api-result-box">Çeviri servisine şu anda ulaşılamıyor, tekrar deneyin.</div>`;
+  };
+
+  document.getElementById("btnReadability").onclick = async () => {
+    const box = document.getElementById("readabilityBox");
+    box.innerHTML = `<div class="api-result-box">Hesaplanıyor…</div>`;
+    const r = await getReadability(passage.text);
+    box.innerHTML = r
+      ? `<div class="api-result-box">Flesch Okunabilirlik: ${r.fleschReadingEase} · Tahmini seviye: <strong>${LEVEL_LABELS[r.estimatedLevel]}</strong> · ${r.sentences} cümle, ${r.words} kelime</div>`
+      : `<div class="api-result-box">NLTK sunucusu çalışmıyor. <code>server/</code> klasöründe <code>python3 app.py</code> ile başlatın.</div>`;
+  };
+
+  document.getElementById("btnGenCloze").onclick = async () => {
+    const box = document.getElementById("clozeBox");
+    box.innerHTML = `<div class="api-result-box">Alıştırma üretiliyor…</div>`;
+    const cloze = await generateCloze(passage.text);
+    if (cloze.error) {
+      box.innerHTML = `<div class="api-result-box">NLTK sunucusu çalışmıyor ya da bu metinden alıştırma üretilemedi. <code>server/</code> klasöründe <code>python3 app.py</code> ile başlatın.</div>`;
+      return;
+    }
+    const block = document.createElement("div");
+    block.className = "quiz-card";
+    block.style.marginTop = "12px";
+    block.innerHTML = `<div class="quiz-question">🧩 ${cloze.sentence}</div>`;
+    shuffle(cloze.options).forEach((opt) => {
+      const btn = document.createElement("button");
+      btn.className = "option-btn";
+      btn.textContent = opt;
+      btn.onclick = () => {
+        block.querySelectorAll("button").forEach((b) => (b.disabled = true));
+        if (opt === cloze.answer) {
+          btn.classList.add("correct");
+          addXp(3);
+        } else {
+          btn.classList.add("incorrect");
+          block.querySelectorAll("button").forEach((b) => {
+            if (b.textContent === cloze.answer) b.classList.add("correct");
+          });
+        }
+      };
+      block.appendChild(btn);
+    });
+    box.innerHTML = "";
+    box.appendChild(block);
   };
 
   const qContainer = document.getElementById("readingQuestions");
@@ -338,11 +385,11 @@ function renderWritingQuestion() {
     box.innerHTML = `<div class="api-result-box">Aranıyor…</div>`;
     const res = await getSynonyms(item.answer.split(" ")[0]);
     if (res.error === "no-key") {
-      box.innerHTML = `<div class="api-result-box">Bu özellik için Ayarlar (⚙️) menüsünden ücretsiz bir Words API (RapidAPI) anahtarı ekleyin.</div>`;
+      box.innerHTML = `<div class="api-result-box">NLTK sunucusu bulunamadı ve Ayarlar (⚙️) menüsünde Words API anahtarı da yok. <br/><code>server/</code> klasöründeki yerel NLTK sunucusunu başlatın veya bir anahtar ekleyin.</div>`;
     } else if (res.error) {
       box.innerHTML = `<div class="api-result-box">İstek başarısız oldu (${res.status || res.error}).</div>`;
     } else {
-      box.innerHTML = `<div class="api-result-box">Eş anlamlılar: ${res.synonyms.length ? res.synonyms.join(", ") : "bulunamadı"}</div>`;
+      box.innerHTML = `<div class="api-result-box">Eş anlamlılar (${res.source}): ${res.synonyms.length ? res.synonyms.join(", ") : "bulunamadı"}</div>`;
     }
   };
 
@@ -352,12 +399,12 @@ function renderWritingQuestion() {
     const plain = item.sentence.replace(/___[^.]*/, item.answer);
     const res = await analyzeSentence(plain);
     if (res.error === "no-key") {
-      box.innerHTML = `<div class="api-result-box">Bu özellik için Ayarlar (⚙️) menüsünden ücretsiz bir Google Cloud Natural Language anahtarı ekleyin.</div>`;
+      box.innerHTML = `<div class="api-result-box">NLTK sunucusu bulunamadı ve Ayarlar (⚙️) menüsünde Google NL anahtarı da yok. <br/><code>server/</code> klasöründeki yerel NLTK sunucusunu başlatın veya bir anahtar ekleyin.</div>`;
     } else if (res.error) {
       box.innerHTML = `<div class="api-result-box">İstek başarısız oldu: ${res.message || res.error}.</div>`;
     } else {
       const tags = res.tokens.map((t) => `${t.word}<span class="tip-text">/${t.partOfSpeech}</span>`).join(" ");
-      box.innerHTML = `<div class="api-result-box">${tags}</div>`;
+      box.innerHTML = `<div class="api-result-box">(${res.source}) ${tags}</div>`;
     }
   };
   shuffle(item.options).forEach((opt) => {
@@ -542,6 +589,8 @@ function renderSpeakingQuestion() {
       ${supported ? '<button class="mic-btn" id="micBtn" title="Kaydet">🎤</button>' : ""}
     </div>
     ${!supported ? '<p class="tip-text">Bu tarayıcı konuşma tanımayı desteklemiyor. Chrome kullanmayı deneyin.</p>' : ""}
+    <button class="inline-btn" id="btnPronHelp">🔤 Zor Kelimenin Telaffuzunu Göster (NLTK)</button>
+    <div id="pronHelpBox"></div>
     <div class="transcript-box" id="transcriptBox">Söylediğiniz burada görünecek…</div>
     <div id="scoreArea"></div>
     <div style="margin-top:16px;">
@@ -553,6 +602,21 @@ function renderSpeakingQuestion() {
   document.getElementById("skipBtn").onclick = () => {
     speakingIndex++;
     renderSpeakingQuestion();
+  };
+
+  document.getElementById("btnPronHelp").onclick = async () => {
+    const box = document.getElementById("pronHelpBox");
+    box.innerHTML = `<div class="api-result-box">Aranıyor…</div>`;
+    const words = item.text.replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(Boolean);
+    const target = words.reduce((a, b) => (b.length > a.length ? b : a), "");
+    const pron = await getPronunciationHelp(target);
+    if (!pron) {
+      box.innerHTML = `<div class="api-result-box">NLTK sunucusu çalışmıyor. <code>server/</code> klasöründe <code>python3 app.py</code> ile başlatın.</div>`;
+    } else if (!pron.found) {
+      box.innerHTML = `<div class="api-result-box">"${target}" için telaffuz verisi bulunamadı.</div>`;
+    } else {
+      box.innerHTML = `<div class="api-result-box"><strong>${target}</strong> → ${pron.arpabet.join(" ")}<br/>Türkçe okunuşa yakın: ${pron.turkishHints.join("-")}</div>`;
+    }
   };
 
   if (supported) {
@@ -654,10 +718,17 @@ async function loadNextFlashcard() {
 // ------------------------------------------------------------------
 // SETTINGS (API keys)
 // ------------------------------------------------------------------
-function openSettings() {
+async function openSettings() {
   document.getElementById("rapidApiKeyInput").value = apiKeys.rapidApiKey || "";
   document.getElementById("googleNlKeyInput").value = apiKeys.googleNlKey || "";
   document.getElementById("settingsModal").classList.add("show");
+
+  const statusBox = document.getElementById("nltkStatusBox");
+  statusBox.textContent = "NLTK sunucusu kontrol ediliyor…";
+  const ok = await checkNltkBackend();
+  statusBox.textContent = ok
+    ? "✅ NLTK sunucusu çalışıyor — eş anlamlı, analiz, telaffuz ve okunabilirlik özellikleri aktif."
+    : "⚪ NLTK sunucusu bulunamadı (http://127.0.0.1:5001). Çalıştırmak için server/README.md dosyasına bakın.";
 }
 
 function closeSettings() {
