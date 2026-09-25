@@ -54,10 +54,22 @@ list — see `api.js`:
 
 ## Optional: local NLTK server (recommended)
 
-Run `server/` (see `server/README.md`) for real WordNet synonyms, POS/syntax
-analysis, pronunciation help, readability scoring, and auto-generated
-exercises — all free, local, and without needing any API key at all. The
-app auto-detects it; everything else keeps working if it's not running.
+Adds real WordNet synonyms, POS/syntax analysis, pronunciation help,
+readability scoring, and auto-generated exercises — all free, local, and
+without needing any API key. The app auto-detects it; everything else
+keeps working if it's not running.
+
+**Easiest way:** double-click `NLTK Sunucusunu Başlat.command` (macOS). It
+sets up everything on its own (creates the Python virtual environment,
+installs dependencies, downloads NLTK's data, fixes the common macOS
+"SSL certificate verify failed" issue automatically) and starts the
+server. Safe to double-click again later — it skips whatever's already
+done and just starts the server. Leave its Terminal window open while
+using the app; closing it (or Ctrl+C) just turns off the NLTK-powered
+buttons, nothing else breaks.
+
+Manual setup is documented in `server/README.md` if you'd rather run the
+steps yourself.
 
 ## Notes
 
