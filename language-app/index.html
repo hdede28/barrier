@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LinguaPath — İngilizce Öğrenme Uygulaması</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">🌐</span>
+      <span class="brand-name">LinguaPath</span>
+    </div>
+    <div class="stats" id="statsBar">
+      <span id="levelBadge" class="badge">Seviye: —</span>
+      <span id="xpBadge" class="badge">⭐ XP: 0</span>
+      <span id="streakBadge" class="badge">🔥 Seri: 0</span>
+    </div>
+  </header>
+
+  <main id="app">
+
+    <!-- HOME -->
+    <section id="screen-home" class="screen active">
+      <div class="hero">
+        <h1>İngilizceni Bir Sonraki Seviyeye Taşı</h1>
+        <p>Dinle, konuş, oku, yaz — kişiselleştirilmiş kartlar ve quizlerle her beceriyi geliştir.</p>
+        <button class="btn btn-primary" id="btnStartPlacement">🎯 Seviye Belirleme Testine Başla</button>
+      </div>
+
+      <h2 class="section-title">Beceri Kartları</h2>
+      <div class="card-grid">
+        <div class="skill-card" data-skill="reading">
+          <div class="skill-icon">📖</div>
+          <h3>Okuma</h3>
+          <p>Seviyene uygun metinler ve anlama soruları.</p>
+        </div>
+        <div class="skill-card" data-skill="writing">
+          <div class="skill-icon">✍️</div>
+          <h3>Yazma</h3>
+          <p>Gramer alıştırmaları ve anında geri bildirim.</p>
+        </div>
+        <div class="skill-card" data-skill="listening">
+          <div class="skill-icon">🎧</div>
+          <h3>Dinleme</h3>
+          <p>Sesli cümleleri dinle, anlamını seç.</p>
+        </div>
+        <div class="skill-card" data-skill="speaking">
+          <div class="skill-icon">🎤</div>
+          <h3>Konuşma</h3>
+          <p>Telaffuzunu mikrofonla kaydet, anında değerlendirme al.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PLACEMENT TEST -->
+    <section id="screen-placement" class="screen">
+      <h2>Seviye Belirleme Testi</h2>
+      <div class="progress-bar"><div class="progress-fill" id="placementProgress"></div></div>
+      <div class="quiz-card" id="placementQuestionCard"></div>
+    </section>
+
+    <!-- PLACEMENT RESULT -->
+    <section id="screen-result" class="screen">
+      <div class="result-card">
+        <h2>Tebrikler! 🎉</h2>
+        <p>Seviyeniz:</p>
+        <div class="level-pill" id="resultLevel">—</div>
+        <p id="resultMessage"></p>
+        <button class="btn btn-primary" id="btnGoDashboard">Panele Git</button>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="screen-dashboard" class="screen">
+      <h2>Panelim</h2>
+      <p>Mevcut seviyen: <strong id="dashLevel">—</strong> <button class="btn btn-link" id="btnRetakeTest">Testi Tekrar Al</button></p>
+      <div class="card-grid">
+        <div class="skill-card" data-skill="reading"><div class="skill-icon">📖</div><h3>Okuma</h3><p>Metni oku, soruları cevapla.</p></div>
+        <div class="skill-card" data-skill="writing"><div class="skill-icon">✍️</div><h3>Yazma</h3><p>Boşlukları doğru doldur.</p></div>
+        <div class="skill-card" data-skill="listening"><div class="skill-icon">🎧</div><h3>Dinleme</h3><p>Sesi dinle, doğru cevabı seç.</p></div>
+        <div class="skill-card" data-skill="speaking"><div class="skill-icon">🎤</div><h3>Konuşma</h3><p>Cümleyi tekrarla, telaffuzunu ölç.</p></div>
+      </div>
+    </section>
+
+    <!-- READING -->
+    <section id="screen-reading" class="screen">
+      <button class="btn btn-back">← Panele Dön</button>
+      <h2>📖 Okuma</h2>
+      <div class="lesson-card" id="readingContent"></div>
+    </section>
+
+    <!-- WRITING -->
+    <section id="screen-writing" class="screen">
+      <button class="btn btn-back">← Panele Dön</button>
+      <h2>✍️ Yazma</h2>
+      <div class="progress-bar"><div class="progress-fill" id="writingProgress"></div></div>
+      <div class="quiz-card" id="writingContent"></div>
+    </section>
+
+    <!-- LISTENING -->
+    <section id="screen-listening" class="screen">
+      <button class="btn btn-back">← Panele Dön</button>
+      <h2>🎧 Dinleme</h2>
+      <div class="progress-bar"><div class="progress-fill" id="listeningProgress"></div></div>
+      <div class="quiz-card" id="listeningContent"></div>
+    </section>
+
+    <!-- SPEAKING -->
+    <section id="screen-speaking" class="screen">
+      <button class="btn btn-back">← Panele Dön</button>
+      <h2>🎤 Konuşma</h2>
+      <div class="progress-bar"><div class="progress-fill" id="speakingProgress"></div></div>
+      <div class="quiz-card" id="speakingContent"></div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

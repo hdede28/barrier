@@ -1,0 +1,222 @@
+:root {
+  --primary: #5b6ee1;
+  --primary-dark: #4453c4;
+  --accent: #ff9f43;
+  --success: #2ecc71;
+  --danger: #ff5b5b;
+  --bg: #f4f6fb;
+  --card-bg: #ffffff;
+  --text: #222946;
+  --text-muted: #6b7280;
+  --radius: 16px;
+  --shadow: 0 8px 24px rgba(60, 70, 130, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12141f;
+    --card-bg: #1b1e2e;
+    --text: #eef0fb;
+    --text-muted: #a0a4c0;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.brand { display: flex; align-items: center; gap: 8px; font-size: 1.3rem; font-weight: 700; }
+.brand-icon { font-size: 1.5rem; }
+
+.stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.badge {
+  background: rgba(255,255,255,0.18);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+#app { max-width: 960px; margin: 0 auto; padding: 24px 16px 60px; }
+
+.screen { display: none; animation: fadeIn 0.3s ease; }
+.screen.active { display: block; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.hero {
+  text-align: center;
+  padding: 40px 16px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--primary), #8f6fe8);
+  color: white;
+  box-shadow: var(--shadow);
+}
+.hero h1 { margin: 0 0 12px; font-size: clamp(1.5rem, 4vw, 2.2rem); }
+.hero p { margin: 0 0 24px; opacity: 0.92; }
+
+.btn {
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 12px 22px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn:hover { transform: translateY(-2px); }
+.btn-primary { background: var(--accent); color: #2a1a00; box-shadow: 0 6px 16px rgba(255,159,67,0.4); }
+.btn-secondary { background: var(--card-bg); color: var(--text); box-shadow: var(--shadow); }
+.btn-link { background: none; color: var(--primary); text-decoration: underline; padding: 4px 8px; font-weight: 600; }
+.btn-back { background: none; color: var(--text-muted); padding: 6px 0; margin-bottom: 12px; font-weight: 600; }
+
+.section-title { margin: 36px 0 16px; }
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.skill-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.skill-card:hover { transform: translateY(-4px); }
+.skill-icon { font-size: 2rem; margin-bottom: 8px; }
+.skill-card h3 { margin: 0 0 6px; }
+.skill-card p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+
+.progress-bar {
+  height: 8px;
+  background: rgba(0,0,0,0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 12px 0 20px;
+}
+.progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s ease; }
+
+.quiz-card, .lesson-card, .result-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.quiz-question { font-size: 1.15rem; margin-bottom: 16px; font-weight: 600; }
+
+.option-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  border: 2px solid rgba(0,0,0,0.08);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.option-btn:hover { border-color: var(--primary); }
+.option-btn.correct { border-color: var(--success); background: rgba(46,204,113,0.15); }
+.option-btn.incorrect { border-color: var(--danger); background: rgba(255,91,91,0.15); }
+.option-btn:disabled { cursor: default; }
+
+.feedback { margin-top: 14px; font-weight: 600; }
+.feedback.correct { color: var(--success); }
+.feedback.incorrect { color: var(--danger); }
+
+.result-card { text-align: center; }
+.level-pill {
+  display: inline-block;
+  margin: 12px 0;
+  padding: 10px 24px;
+  background: var(--primary);
+  color: white;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.passage-text {
+  line-height: 1.7;
+  font-size: 1.05rem;
+  background: var(--bg);
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.speak-controls { display: flex; gap: 12px; align-items: center; margin: 16px 0; flex-wrap: wrap; }
+.mic-btn {
+  background: var(--danger);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  width: 64px;
+  height: 64px;
+  font-size: 1.6rem;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(255,91,91,0.4);
+}
+.mic-btn.listening { animation: pulse 1s infinite; }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255,91,91,0.5); }
+  70% { box-shadow: 0 0 0 16px rgba(255,91,91,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,91,91,0); }
+}
+
+.target-phrase { font-size: 1.2rem; font-weight: 600; margin-bottom: 6px; }
+.tip-text { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px; }
+.transcript-box { background: var(--bg); border-radius: 10px; padding: 12px; margin-top: 10px; min-height: 24px; }
+
+.pron-score { font-size: 1.4rem; font-weight: 700; margin-top: 12px; }
+.pron-score.good { color: var(--success); }
+.pron-score.mid { color: var(--accent); }
+.pron-score.low { color: var(--danger); }
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #222946;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s ease;
+  z-index: 999;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.summary-card { text-align: center; padding: 30px; }
+.summary-card .btn { margin-top: 16px; }
+
+@media (max-width: 480px) {
+  .topbar { flex-direction: column; align-items: flex-start; }
+}
