@@ -16,6 +16,7 @@
       <span id="levelBadge" class="badge">Seviye: —</span>
       <span id="xpBadge" class="badge">⭐ XP: 0</span>
       <span id="streakBadge" class="badge">🔥 Seri: 0</span>
+      <button class="badge badge-btn" id="btnSettings" title="API Ayarları">⚙️</button>
     </div>
   </header>
 
@@ -50,6 +51,11 @@
           <div class="skill-icon">🎤</div>
           <h3>Konuşma</h3>
           <p>Telaffuzunu mikrofonla kaydet, anında değerlendirme al.</p>
+        </div>
+        <div class="skill-card" data-skill="flashcards">
+          <div class="skill-icon">🗂️</div>
+          <h3>Kelime Kartları</h3>
+          <p>Rastgele kelimelerle sözlük destekli kelime hazinesi pratiği.</p>
         </div>
       </div>
     </section>
@@ -92,6 +98,7 @@
         <div class="skill-card" data-skill="writing"><div class="skill-icon">✍️</div><h3>Yazma</h3><p>Boşlukları doğru doldur.</p></div>
         <div class="skill-card" data-skill="listening"><div class="skill-icon">🎧</div><h3>Dinleme</h3><p>Sesi dinle, doğru cevabı seç.</p></div>
         <div class="skill-card" data-skill="speaking"><div class="skill-icon">🎤</div><h3>Konuşma</h3><p>Cümleyi tekrarla, telaffuzunu ölç.</p></div>
+        <div class="skill-card" data-skill="flashcards"><div class="skill-icon">🗂️</div><h3>Kelime Kartları</h3><p>Rastgele kelime + sözlük.</p></div>
       </div>
     </section>
 
@@ -126,11 +133,48 @@
       <div class="quiz-card" id="speakingContent"></div>
     </section>
 
+    <!-- FLASHCARDS -->
+    <section id="screen-flashcards" class="screen">
+      <button class="btn btn-back">← Panele Dön</button>
+      <h2>🗂️ Kelime Kartları</h2>
+      <p class="tip-text">Free Dictionary &amp; English Random Words API ile canlı veri.</p>
+      <div class="quiz-card" id="flashcardContent"></div>
+    </section>
+
   </main>
+
+  <!-- SETTINGS MODAL -->
+  <div id="settingsModal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>⚙️ API Ayarları</h2>
+      <p class="tip-text">
+        Bu anahtarlar yalnızca sizin tarayıcınızda (localStorage) saklanır, hiçbir sunucuya gönderilmez.
+      </p>
+
+      <label class="settings-label">Words API (RapidAPI) anahtarı — Yazma modülünde eş anlamlı kelime önerisi için</label>
+      <input type="text" id="rapidApiKeyInput" class="settings-input" placeholder="RapidAPI key" />
+      <p class="tip-text">Ücretsiz anahtar: <a href="https://rapidapi.com/dpventures/api/wordsapi" target="_blank" rel="noopener">rapidapi.com/dpventures/api/wordsapi</a></p>
+
+      <label class="settings-label">Google Cloud Natural Language API anahtarı — Cümle/sözdizimi analizi için</label>
+      <input type="text" id="googleNlKeyInput" class="settings-input" placeholder="Google Cloud API key" />
+      <p class="tip-text">Ücretsiz anahtar: <a href="https://cloud.google.com/natural-language/docs/setup" target="_blank" rel="noopener">cloud.google.com/natural-language</a></p>
+
+      <div style="margin-top:20px; display:flex; gap:10px;">
+        <button class="btn btn-primary" id="btnSaveSettings">Kaydet</button>
+        <button class="btn btn-secondary" id="btnCloseSettings">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DICTIONARY POPUP -->
+  <div id="dictPopup" class="modal-overlay">
+    <div class="modal-box" id="dictPopupContent"></div>
+  </div>
 
   <div id="toast" class="toast"></div>
 
   <script src="data.js"></script>
+  <script src="api.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

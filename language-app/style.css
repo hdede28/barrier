@@ -220,3 +220,98 @@ body {
 @media (max-width: 480px) {
   .topbar { flex-direction: column; align-items: flex-start; }
 }
+
+.badge-btn {
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 12, 30, 0.55);
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.modal-overlay.show { display: flex; }
+
+.modal-box {
+  background: var(--card-bg);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+}
+
+.settings-label {
+  display: block;
+  margin: 16px 0 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.settings-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.15);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.word-link {
+  cursor: pointer;
+  border-bottom: 2px dotted var(--primary);
+  color: inherit;
+}
+.word-link:hover { color: var(--primary); }
+
+.dict-audio-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.meaning-block { margin: 10px 0; padding: 10px; background: var(--bg); border-radius: 10px; }
+.meaning-pos { font-style: italic; color: var(--text-muted); font-size: 0.85rem; }
+
+.flashcard {
+  text-align: center;
+  padding: 30px 20px;
+}
+.flashcard-word { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; }
+.flashcard-phonetic { color: var(--text-muted); margin-bottom: 16px; }
+
+.inline-btn {
+  background: none;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin: 4px 6px 4px 0;
+}
+.inline-btn:hover { background: var(--primary); color: white; }
+
+.api-result-box {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 10px;
+  font-size: 0.9rem;
+}

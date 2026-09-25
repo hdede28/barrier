@@ -172,6 +172,58 @@ function ensureLevel() {
 }
 
 // ------------------------------------------------------------------
+// DICTIONARY POPUP (Free Dictionary API + Wiktionary fallback)
+// ------------------------------------------------------------------
+function makeClickableText(text) {
+  return text.replace(/[A-Za-z']+/g, (word) => `<span class="word-link" data-word="${word}">${word}</span>`);
+}
+
+function wireClickableWords(root) {
+  root.querySelectorAll(".word-link").forEach((el) => {
+    el.addEventListener("click", () => showDictPopup(el.dataset.word));
+  });
+}
+
+async function showDictPopup(word) {
+  const popup = document.getElementById("dictPopup");
+  const content = document.getElementById("dictPopupContent");
+  content.innerHTML = `<p>"${word}" aranıyor…</p>`;
+  popup.classList.add("show");
+
+  const result = await lookupWord(word);
+  if (!result) {
+    content.innerHTML = `
+      <h3>${word}</h3>
+      <p>Sözlükte bulunamadı.</p>
+      <button class="btn btn-secondary" id="btnCloseDictPopup">Kapat</button>`;
+  } else {
+    const meaningsHtml = result.meanings
+      .map(
+        (m) => `
+        <div class="meaning-block">
+          <div class="meaning-pos">${m.partOfSpeech}</div>
+          <div>${m.definition}</div>
+          ${m.example ? `<div class="tip-text">"${m.example}"</div>` : ""}
+          ${m.synonyms.length ? `<div class="tip-text">Eş anlamlı: ${m.synonyms.join(", ")}</div>` : ""}
+        </div>`
+      )
+      .join("");
+    content.innerHTML = `
+      <h3>${result.word} ${result.phonetic ? `<span class="tip-text">${result.phonetic}</span>` : ""}
+        ${result.audio ? `<button class="dict-audio-btn" id="btnPlayDictAudio">🔊</button>` : ""}
+      </h3>
+      ${meaningsHtml}
+      <div class="tip-text">Kaynak: ${result.source}</div>
+      <button class="btn btn-secondary" id="btnCloseDictPopup">Kapat</button>
+    `;
+    if (result.audio) {
+      document.getElementById("btnPlayDictAudio").onclick = () => new Audio(result.audio).play();
+    }
+  }
+  document.getElementById("btnCloseDictPopup").onclick = () => popup.classList.remove("show");
+}
+
+// ------------------------------------------------------------------
 // READING
 // ------------------------------------------------------------------
 function openReading() {
@@ -183,9 +235,25 @@ function openReading() {
 
   container.innerHTML = `
     <h3>${passage.title}</h3>
-    <div class="passage-text">${passage.text}</div>
+    <div class="passage-text" id="passageText">${makeClickableText(passage.text)}</div>
+    <button class="inline-btn" id="btnTranslatePassage">🌐 Türkçeye Çevir</button>
+    <div id="translationBox"></div>
     <div id="readingQuestions"></div>
   `;
+  wireClickableWords(document.getElementById("passageText"));
+
+  document.getElementById("btnTranslatePassage").onclick = async (e) => {
+    const btn = e.target;
+    btn.disabled = true;
+    btn.textContent = "Çevriliyor…";
+    const translated = await translateText(passage.text, "tr");
+    btn.disabled = false;
+    btn.textContent = "🌐 Türkçeye Çevir";
+    const box = document.getElementById("translationBox");
+    box.innerHTML = translated
+      ? `<div class="api-result-box">${translated}</div>`
+      : `<div class="api-result-box">Çeviri servisine şu anda ulaşılamıyor, tekrar deneyin.</div>`;
+  };
 
   const qContainer = document.getElementById("readingQuestions");
   let answered = 0;
@@ -259,8 +327,39 @@ function renderWritingQuestion() {
   container.innerHTML = `
     <div class="quiz-question">${writingIndex + 1}/${total}. ${item.sentence}</div>
     <div id="writingOptions"></div>
+    <button class="inline-btn" id="btnSynonyms">🔎 Eş Anlamlı Öner (Words API)</button>
+    <button class="inline-btn" id="btnAnalyze">🧠 Cümle Analizi (Google NL)</button>
+    <div id="writingApiResult"></div>
   `;
   const optsEl = document.getElementById("writingOptions");
+
+  document.getElementById("btnSynonyms").onclick = async () => {
+    const box = document.getElementById("writingApiResult");
+    box.innerHTML = `<div class="api-result-box">Aranıyor…</div>`;
+    const res = await getSynonyms(item.answer.split(" ")[0]);
+    if (res.error === "no-key") {
+      box.innerHTML = `<div class="api-result-box">Bu özellik için Ayarlar (⚙️) menüsünden ücretsiz bir Words API (RapidAPI) anahtarı ekleyin.</div>`;
+    } else if (res.error) {
+      box.innerHTML = `<div class="api-result-box">İstek başarısız oldu (${res.status || res.error}).</div>`;
+    } else {
+      box.innerHTML = `<div class="api-result-box">Eş anlamlılar: ${res.synonyms.length ? res.synonyms.join(", ") : "bulunamadı"}</div>`;
+    }
+  };
+
+  document.getElementById("btnAnalyze").onclick = async () => {
+    const box = document.getElementById("writingApiResult");
+    box.innerHTML = `<div class="api-result-box">Analiz ediliyor…</div>`;
+    const plain = item.sentence.replace(/___[^.]*/, item.answer);
+    const res = await analyzeSentence(plain);
+    if (res.error === "no-key") {
+      box.innerHTML = `<div class="api-result-box">Bu özellik için Ayarlar (⚙️) menüsünden ücretsiz bir Google Cloud Natural Language anahtarı ekleyin.</div>`;
+    } else if (res.error) {
+      box.innerHTML = `<div class="api-result-box">İstek başarısız oldu: ${res.message || res.error}.</div>`;
+    } else {
+      const tags = res.tokens.map((t) => `${t.word}<span class="tip-text">/${t.partOfSpeech}</span>`).join(" ");
+      box.innerHTML = `<div class="api-result-box">${tags}</div>`;
+    }
+  };
   shuffle(item.options).forEach((opt) => {
     const btn = document.createElement("button");
     btn.className = "option-btn";
@@ -503,6 +602,77 @@ function showPronScore(score) {
 }
 
 // ------------------------------------------------------------------
+// FLASHCARDS (English Random Words API + Free Dictionary API)
+// ------------------------------------------------------------------
+async function openFlashcards() {
+  if (!ensureLevel()) return;
+  showScreen("screen-flashcards");
+  await loadNextFlashcard();
+}
+
+async function loadNextFlashcard() {
+  const container = document.getElementById("flashcardContent");
+  container.innerHTML = `<div class="flashcard"><p>Kelime yükleniyor…</p></div>`;
+
+  const word = await getRandomWord();
+  if (!word) {
+    container.innerHTML = `
+      <div class="flashcard">
+        <p>Kelime servisine şu anda ulaşılamıyor.</p>
+        <button class="btn btn-primary" onclick="loadNextFlashcard()">Tekrar Dene</button>
+      </div>`;
+    return;
+  }
+
+  const entry = await lookupWord(word);
+  const meaning = entry?.meanings?.[0];
+
+  container.innerHTML = `
+    <div class="flashcard">
+      <div class="flashcard-word">${word} ${entry?.audio ? `<button class="dict-audio-btn" id="btnPlayCardAudio">🔊</button>` : ""}</div>
+      <div class="flashcard-phonetic">${entry?.phonetic || ""}</div>
+      ${
+        meaning
+          ? `<div class="meaning-block"><div class="meaning-pos">${meaning.partOfSpeech}</div><div>${meaning.definition}</div>${meaning.example ? `<div class="tip-text">"${meaning.example}"</div>` : ""}</div>`
+          : `<p class="tip-text">Tanım bulunamadı.</p>`
+      }
+      <div style="margin-top:16px;">
+        <button class="btn btn-secondary" onclick="loadNextFlashcard()">😕 Bilmiyordum</button>
+        <button class="btn btn-primary" id="btnKnewIt">✅ Biliyordum</button>
+      </div>
+    </div>
+  `;
+  if (entry?.audio) {
+    document.getElementById("btnPlayCardAudio").onclick = () => new Audio(entry.audio).play();
+  }
+  document.getElementById("btnKnewIt").onclick = () => {
+    addXp(2);
+    loadNextFlashcard();
+  };
+}
+
+// ------------------------------------------------------------------
+// SETTINGS (API keys)
+// ------------------------------------------------------------------
+function openSettings() {
+  document.getElementById("rapidApiKeyInput").value = apiKeys.rapidApiKey || "";
+  document.getElementById("googleNlKeyInput").value = apiKeys.googleNlKey || "";
+  document.getElementById("settingsModal").classList.add("show");
+}
+
+function closeSettings() {
+  document.getElementById("settingsModal").classList.remove("show");
+}
+
+function saveSettings() {
+  apiKeys.rapidApiKey = document.getElementById("rapidApiKeyInput").value.trim();
+  apiKeys.googleNlKey = document.getElementById("googleNlKeyInput").value.trim();
+  saveApiKeys(apiKeys);
+  toast("Ayarlar kaydedildi.");
+  closeSettings();
+}
+
+// ------------------------------------------------------------------
 // NAVIGATION WIRING
 // ------------------------------------------------------------------
 function openSkill(skill) {
@@ -510,6 +680,7 @@ function openSkill(skill) {
   else if (skill === "writing") openWriting();
   else if (skill === "listening") openListening();
   else if (skill === "speaking") openSpeaking();
+  else if (skill === "flashcards") openFlashcards();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -532,6 +703,10 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".btn-back").forEach((btn) => {
     btn.addEventListener("click", goDashboard);
   });
+
+  document.getElementById("btnSettings").onclick = openSettings;
+  document.getElementById("btnCloseSettings").onclick = closeSettings;
+  document.getElementById("btnSaveSettings").onclick = saveSettings;
 
   if (state.level) {
     goDashboard();
