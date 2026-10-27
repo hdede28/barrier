@@ -13,8 +13,8 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
-.hero { background: linear-gradient(135deg, #14213d, #1d4ed8); color: #fff; padding: 28px 0 56px; }
-.hero h1 { margin: 0 0 4px; font-size: 1.9rem; letter-spacing: -.02em; }
+.hero { background: #182335; color: #fff; padding: 12px 0 52px; }
+.hero h1 { margin: 0; line-height: 0; }
 .hero p { margin: 0; opacity: .85; max-width: 60ch; }
 main { margin-top: -36px; }
 .panel { background: var(--panel); border-radius: 14px; box-shadow: var(--shadow); padding: 18px; border: 1px solid var(--line); }
@@ -62,7 +62,7 @@ button:disabled { opacity: .6; cursor: progress; }
 .card .src { color: var(--accent); font-weight: 650; }
 .empty { text-align: center; color: var(--muted); padding: 34px 0; }
 .foot { color: var(--muted); font-size: .78rem; padding-top: 28px; padding-bottom: 36px; }
-@media (max-width: 520px) { .hero h1 { font-size: 1.5rem; } .bar span { display: none; } }
+@media (max-width: 520px) { .bar span { display: none; } }
 
 fieldset.sources { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; margin: 0; min-width: 0; }
 fieldset.sources legend { padding: 0 6px; font-size: .85rem; color: var(--muted); font-weight: 600; }
@@ -91,3 +91,8 @@ label.check small { color: var(--muted); font-weight: 400; }
 .src-notes li { font-size: .8rem; color: var(--warn); background: var(--warn-bg); padding: 6px 10px; border-radius: 8px; overflow-wrap: anywhere; }
 .src-notes li.info { color: var(--muted); background: var(--panel); border: 1px solid var(--line); }
 #version { display: block; margin-top: 4px; opacity: .8; }
+
+/* Logo: arka planı hero ile aynı renk; kenarları yumuşatılır, dikdörtgen kutu gibi görünmez. */
+.logo { display: block; width: min(300px, 78vw); height: auto; margin: 0 0 4px -14px;
+  -webkit-mask-image: radial-gradient(ellipse 72% 76% at 50% 50%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(ellipse 72% 76% at 50% 50%, #000 62%, transparent 100%); }
