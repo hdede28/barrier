@@ -42,12 +42,15 @@ function cityClause(city) {
   return names.length > 1 ? `(${names.map((n) => `"${n}"`).join(' OR ')})` : `"${names[0]}"`;
 }
 
-function buildSearchQuery({ country, city, topic, keyword }) {
+const hasCJK = (t) => /[\u3040-\u30ff\u3400-\u9fff]/.test(t);
+
+// minTermLength: çok kısa terimleri (ör. "AI") reddeden kaynaklar için kısa terimleri eler (CJK hariç).
+function buildSearchQuery({ country, city, topic, keyword, minTermLength = 0 }) {
   const parts = [];
   if (city) parts.push(cityClause(city));
   // Ayrı Google Haberler sürümü olmayan ülkelerde ülke adı sorguya eklenir, sonuçlar dünyaya dağılmasın.
   else if (country.approximate) parts.push(quoteTerm(country.nativeName));
-  const terms = topic && topic !== 'general' ? termsFor(topic, country) : [];
+  const terms = (topic && topic !== 'general' ? termsFor(topic, country) : []).filter((t) => t.length >= minTermLength || hasCJK(t));
   if (terms.length) parts.push(terms.length > 1 ? `(${terms.map(quoteTerm).join(' OR ')})` : quoteTerm(terms[0]));
   if (keyword) parts.push(keyword);
   if (!parts.length) parts.push(quoteTerm(country.nativeName));
@@ -87,7 +90,8 @@ function parseSearchParams(params, now = new Date()) {
   const city = cleanText(params.get('city'));
   const keyword = cleanText(params.get('q'), 120);
   const windows = planWindows(params.get('from'), params.get('to'), now);
-  return { country, topic, city, keyword, windows, query: buildSearchQuery({ country, city, topic, keyword }) };
+  const sources = (params.get('sources') || '').split(',').map((x) => x.trim()).filter(Boolean);
+  return { country, topic, city, keyword, windows, sources, query: buildSearchQuery({ country, city, topic, keyword }) };
 }
 
-module.exports = { HttpError, parseDate, cleanText, buildSearchQuery, planWindows, dateOperators, parseSearchParams };
+module.exports = { HttpError, cityClause, parseDate, cleanText, buildSearchQuery, planWindows, dateOperators, parseSearchParams };

@@ -6,7 +6,12 @@ const path = require('node:path');
 const { COUNTRIES, TOPICS } = require('./data/meta');
 const { HttpError } = require('./lib/query');
 const { getNews, createMemoryCache } = require('./lib/news');
+const { createProviders, describe } = require('./lib/providers');
+const { loadFeeds } = require('./data/feeds');
 const { translatorFromEnv, translationResponse } = require('./lib/translators');
+
+// Tanımsız ortam değişkenlerini at, varsayılanlar devreye girsin.
+const cleanBases = (b) => Object.fromEntries(Object.entries(b).filter(([, v]) => v));
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
@@ -18,11 +23,16 @@ const MIME = {
   '.ico': 'image/x-icon',
 };
 
-function createServer({ newsBase = process.env.GOOGLE_NEWS_BASE || 'https://news.google.com', translator = translatorFromEnv() } = {}) {
+function createServer({
+  newsBase = process.env.GOOGLE_NEWS_BASE,
+  bases = { gdelt: process.env.GDELT_BASE_URL, bing: process.env.BING_BASE_URL },
+  feeds = loadFeeds(),
+  translator = translatorFromEnv(),
+} = {}) {
   const cache = createMemoryCache();
-  const handleNews = (url) => getNews(url.searchParams, { newsBase, cache });
+  const providers = createProviders({ feeds });
+  const handleNews = (url) => getNews(url.searchParams, { newsBase, bases: cleanBases(bases), cache, providers });
 
-  // Çok büyük gövde okunup atılır ve temiz bir 413 döner (bağlantıyı kesmek istemcide "fetch failed" üretir).
   function readJson(req, maxBytes = 100_000) {
     return new Promise((resolve, reject) => {
       let size = 0;
@@ -74,7 +84,7 @@ function createServer({ newsBase = process.env.GOOGLE_NEWS_BASE || 'https://news
       const url = new URL(req.url, 'http://localhost');
       if (req.method === 'POST' && url.pathname === '/api/translate') return sendJson(res, 200, await handleTranslate(req));
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Yalnızca GET desteklenir.' });
-      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, translation: translator?.provider || false });
+      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, sources: describe(providers), translation: translator?.provider || false });
       if (url.pathname === '/api/news') return sendJson(res, 200, await handleNews(url));
       return serveStatic(url, res);
     } catch (err) {

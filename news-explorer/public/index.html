@@ -49,6 +49,11 @@
         <label class="wide">Anahtar kelime (isteğe bağlı)
           <input id="keyword" type="text" maxlength="120" placeholder="Örn. burs, deprem, yapay zeka">
         </label>
+        <fieldset class="wide sources">
+          <legend>Kaynaklar</legend>
+          <div id="sourceBoxes" class="boxes"></div>
+          <p class="hint">Çok kaynak daha geniş tarama sağlar, doğruluk anlamına gelmez. Önemli bir haberi her zaman birden çok bağımsız kaynakta ve resmî açıklamalarda karşılaştır.</p>
+        </fieldset>
       </div>
       <p id="countryNote" class="note" role="note" hidden>
         Google Haberler'de bu ülke için ayrı bir sürüm olmayabilir. Arama ülkenin yerel adı ve dili üzerinden yapılır; sonuçlar az ya da eksik olabilir.
@@ -61,12 +66,18 @@
 
     <section id="out" aria-live="polite">
       <div id="status" class="status" hidden></div>
+      <ul id="srcSummary" class="src-summary" hidden></ul>
       <div id="timeline" class="timeline" hidden></div>
       <div id="toolbar" class="toolbar" hidden>
         <div id="lang" class="seg" role="group" aria-label="Başlık dili" hidden>
           <button type="button" id="viewOriginal" aria-pressed="true">Orijinal dil</button>
           <button type="button" id="viewTr" aria-pressed="false">Türkçe</button>
         </div>
+        <select id="kind" aria-label="Kaynak türü" hidden>
+          <option value="all">Tüm türler</option>
+          <option value="news">Haber siteleri</option>
+          <option value="social">Sosyal medya</option>
+        </select>
         <input id="filter" type="search" placeholder="Sonuçlarda ara (başlık veya kaynak)" aria-label="Sonuçlarda ara">
         <select id="sort" aria-label="Sıralama">
           <option value="desc">Yeniden eskiye</option>
@@ -79,7 +90,7 @@
   </main>
 
   <footer class="wrap foot">
-    Haberler Google Haberler RSS akışından alınır; başlıklar ve bağlantılar ilgili yayıncılara aittir.
+    Haberler Google Haberler, GDELT, Bing Haberler ve tanımlı RSS / sosyal medya akışlarından toplanır; başlıklar ve bağlantılar ilgili yayıncılara aittir. Sosyal medya gönderileri doğrulanmamış olabilir.
   </footer>
   <script src="app.js"></script>
 </body>

@@ -101,7 +101,7 @@ test('API hataları: 401 anahtar uyarısı, 429 yoğunluk', async () => {
 
 test('HTTP: /api/translate ve /api/meta.translation', async () => {
   const mock = await createMockAnthropic();
-  const app = createServer({ newsBase: 'http://127.0.0.1:1', translator: mk(mock) });
+  const app = createServer({ newsBase: 'http://127.0.0.1:1', feeds: [], translator: mk(mock) });
   await new Promise((r) => app.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${app.address().port}`;
   assert.equal((await (await fetch(`${base}/api/meta`)).json()).translation, 'claude');
@@ -112,7 +112,7 @@ test('HTTP: /api/translate ve /api/meta.translation', async () => {
   assert.equal((await fetch(`${base}/api/translate`, { method: 'POST', body: 'x'.repeat(200000) })).status, 413);
   app.close(); mock.close();
 
-  const off = createServer({ newsBase: 'http://127.0.0.1:1', translator: null });
+  const off = createServer({ newsBase: 'http://127.0.0.1:1', feeds: [], translator: null });
   await new Promise((r) => off.listen(0, '127.0.0.1', r));
   const b2 = `http://127.0.0.1:${off.address().port}`;
   assert.equal((await (await fetch(`${b2}/api/meta`)).json()).translation, false);

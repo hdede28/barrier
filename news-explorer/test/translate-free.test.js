@@ -83,7 +83,7 @@ test('sağlayıcı seçimi: anahtar varsa Claude, yoksa MyMemory', () => {
 
 test('HTTP: anahtarsız sunucu /api/translate ve meta.translation = mymemory', async () => {
   const mock = await createMockMyMemory({ quotaAfter: 1 });
-  const app = createServer({ newsBase: 'http://127.0.0.1:1', translator: mk(mock) });
+  const app = createServer({ newsBase: 'http://127.0.0.1:1', feeds: [], translator: mk(mock) });
   await new Promise((r) => app.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${app.address().port}`;
   assert.equal((await (await fetch(`${base}/api/meta`)).json()).translation, 'mymemory');

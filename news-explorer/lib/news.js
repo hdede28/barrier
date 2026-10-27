@@ -1,76 +1,91 @@
 'use strict';
 
-const { HttpError, parseSearchParams, dateOperators } = require('./query');
-const { parseRss } = require('./rss');
+const { HttpError, parseSearchParams } = require('./query');
+const { createProviders, selectProviders, DEFAULT_BASES } = require('./providers');
+const { errorText } = require('./providers/common');
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 300;
-const FETCH_TIMEOUT_MS = 10000;
-const CONCURRENCY = 4;
-const PER_WINDOW_SINGLE = 100;
-const PER_WINDOW_MULTI = 25;
 
-// Node ve Cloudflare Worker ortak çekirdeği: yalnızca fetch ve AbortSignal kullanır.
-async function fetchWindow(newsBase, ctx, win, limit) {
-  const url = new URL('/rss/search', newsBase);
-  url.searchParams.set('q', `${ctx.query} ${dateOperators(win)}`);
-  url.searchParams.set('hl', ctx.country.hl);
-  url.searchParams.set('gl', ctx.country.gl || ctx.country.code);
-  url.searchParams.set('ceid', ctx.country.ceid);
-  const res = await fetch(url, {
-    headers: { 'user-agent': 'Mozilla/5.0 (compatible; HaberAtlasi/1.0)', accept: 'application/rss+xml, text/xml' },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`Kaynak ${res.status} döndürdü`);
-  return parseRss(await res.text(), limit);
+// Başlıkları "aynı haber mi?" diye kıyaslamak için: harf ve rakam dışını atar.
+const titleKey = (t) => t.toLocaleLowerCase('tr').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+function windowIndex(windows, published) {
+  if (!published) return null;
+  const day = published.slice(0, 10);
+  const i = windows.findIndex((w) => day >= w.from && day <= w.to);
+  return i < 0 ? null : i;
 }
 
-async function search(newsBase, ctx) {
-  const limit = ctx.windows.length === 1 ? PER_WINDOW_SINGLE : PER_WINDOW_MULTI;
-  const results = new Array(ctx.windows.length);
-  let next = 0;
-  const worker = async () => {
-    while (next < ctx.windows.length) {
-      const i = next++;
-      try {
-        results[i] = { items: await fetchWindow(newsBase, ctx, ctx.windows[i], limit) };
-      } catch (err) {
-        results[i] = { items: [], error: err.name === 'TimeoutError' ? 'Zaman aşımı' : err.message };
-      }
+// Node ve Cloudflare Worker ortak çekirdeği: yalnızca fetch ve AbortSignal kullanır.
+async function search(ctx, providers, deps) {
+  const runs = await Promise.all(providers.map(async (p) => {
+    const skipped = p.skip(ctx, deps);
+    if (skipped) return { p, items: [], skipped };
+    try {
+      return { p, ...(await p.fetch(ctx, deps)) };
+    } catch (err) {
+      return { p, items: [], error: errorText(err) };
     }
-  };
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, ctx.windows.length) }, worker));
+  }));
 
-  const seen = new Set();
+  // Aynı haber tek satırda toplanır; hangi kaynaklarda göründüğü saklanır. Adres aynıysa her zaman aynı haberdir;
+  // başlık aynıysa yalnızca farklı kaynaklar arasında (aynı kaynağın günlük tekrarlanan başlıkları silinmesin).
+  const byLink = new Map();
+  const byTitle = new Map();
   const items = [];
-  results.forEach((r, i) => {
-    for (const it of r.items) {
-      const key = it.link || `${it.title}|${it.source}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      items.push({ ...it, window: i });
+  for (const run of runs) {
+    for (const it of run.items) {
+      const tk = titleKey(it.title);
+      const sameTitle = tk.length >= 15 ? byTitle.get(tk) : null;
+      const dup = byLink.get(it.link) || (sameTitle && sameTitle.provider !== run.p.id ? sameTitle : null);
+      if (dup) {
+        if (dup.provider !== run.p.id && !dup.alsoIn.includes(run.p.label)) dup.alsoIn.push(run.p.label);
+        continue;
+      }
+      const item = { ...it, provider: run.p.id, kind: run.p.kind, alsoIn: [], window: it.window ?? windowIndex(ctx.windows, it.published) };
+      byLink.set(it.link, item);
+      if (tk.length >= 15 && !sameTitle) byTitle.set(tk, item);
+      items.push(item);
     }
-  });
+  }
   items.sort((a, b) => (b.published || '').localeCompare(a.published || ''));
+
+  const google = runs.find((r) => r.p.id === 'google');
+  const counts = ctx.windows.map(() => 0);
+  items.forEach((it) => { if (it.window !== null) counts[it.window]++; });
+  const shown = {};
+  items.forEach((it) => { shown[it.provider] = (shown[it.provider] || 0) + 1; });
 
   return {
     query: ctx.query,
-    windows: ctx.windows.map((w, i) => ({ ...w, count: results[i].items.length, error: results[i].error || null })),
+    windows: ctx.windows.map((w, i) => ({ ...w, count: counts[i], error: google?.windowErrors?.[i] || null })),
     total: items.length,
     items,
+    sources: runs.map((r) => ({
+      id: r.p.id, label: r.p.label, kind: r.p.kind,
+      count: shown[r.p.id] || 0, found: r.items.length, error: r.error || null, skipped: r.skipped || null, note: r.note || null,
+    })),
   };
 }
 
 // cache: { get(key) -> body | undefined, set(key, body) } (eşzamansız olabilir)
-async function getNews(searchParams, { newsBase, cache }) {
-  const ctx = parseSearchParams(searchParams);
-  const key = `${ctx.country.code}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}`;
+async function getNews(searchParams, { newsBase, bases = {}, cache, providers = createProviders(), now = new Date() }) {
+  const ctx = parseSearchParams(searchParams, now);
+  const chosen = selectProviders(providers, ctx.sources);
+  if (!chosen.length) throw new HttpError(400, 'Geçerli bir kaynak seçilmedi.');
+  const deps = { bases: { ...DEFAULT_BASES, ...bases, ...(newsBase && { google: newsBase }) }, now };
+
+  const key = `${ctx.country.code}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}`;
   const hit = await cache?.get(key);
   if (hit) return { ...hit, cached: true };
 
-  const body = await search(newsBase, ctx);
-  // Tüm pencereler hata verdiyse önbelleğe alma: geçici bir kesinti 10 dakika sürmesin.
-  if (body.windows.every((w) => w.error)) throw new HttpError(502, `Haber kaynağına ulaşılamadı (${body.windows[0].error}).`);
+  const body = await search(ctx, chosen, deps);
+  // Çalışan hiçbir kaynak yoksa (hepsi hata verdiyse) önbelleğe alma: geçici bir kesinti 10 dakika sürmesin.
+  const failed = body.sources.filter((s) => s.error);
+  if (failed.length && failed.length === body.sources.filter((s) => !s.skipped).length) {
+    throw new HttpError(502, `Haber kaynaklarına ulaşılamadı (${failed[0].label}: ${failed[0].error}).`);
+  }
   await cache?.set(key, body);
   return { ...body, cached: false };
 }

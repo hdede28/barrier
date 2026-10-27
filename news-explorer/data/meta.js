@@ -2,6 +2,13 @@
 
 // Google News sürümleri: gl = ülke (code), hl = dil, ceid = "ÜLKE:dil". terms = konu terimlerinin dilleri.
 // terms, konu anahtar kelimelerinin dile göre karşılıklarıdır (arama sorgusunda OR ile birleştirilir).
+// GDELT "sourcecountry" filtresi ISO değil FIPS 10-4 kodu kullanır.
+const FIPS = {
+  TR: 'TU', US: 'US', GB: 'UK', DE: 'GM', FR: 'FR', ES: 'SP', IT: 'IT', NL: 'NL', BR: 'BR', RU: 'RS', JP: 'JA', IN: 'IN',
+  CA: 'CA', AU: 'AS', SA: 'SA', EG: 'EG', AE: 'AE', GR: 'GR', RS: 'RI', MY: 'MY', AL: 'AL', XK: 'KV', MK: 'MK', ME: 'MJ',
+  IR: 'IR', AF: 'AF', GM: 'GA', TN: 'TS',
+};
+
 const COUNTRIES = [
   { code: 'TR', name: 'Türkiye', nativeName: 'Türkiye', flag: '🇹🇷', hl: 'tr', ceid: 'TR:tr',
     cities: ['İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Konya', 'Gaziantep', 'Trabzon', 'Adana', 'Kayseri'] },
@@ -61,7 +68,7 @@ const COUNTRIES = [
   // "a / b" biçimindeki şehir, iki yazımı da arar (OR).
   { code: 'TN', name: 'Tunus', nativeName: 'تونس', flag: '🇹🇳', hl: 'ar', ceid: 'TN:ar', terms: ['ar', 'fr'], approximate: true,
     cities: ['Tunis / تونس', 'Sfax / صفاقس', 'Sousse / سوسة', 'Bizerte / بنزرت'] },
-].map((c) => ({ ...c, terms: [].concat(c.terms || c.hl.split('-')[0]) }));
+].map((c) => ({ ...c, terms: [].concat(c.terms || c.hl.split('-')[0]), fips: FIPS[c.code] }));
 
 const TOPICS = [
   { id: 'general', label: 'Genel (tüm konular)', icon: '🗞️' },

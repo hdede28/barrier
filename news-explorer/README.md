@@ -74,30 +74,66 @@ Notlar:
 - Ücretsiz planda bir isteğin CPU süresi kısadır (10 ms). Uzun dönemli (12 parçalı) ilk aramalar bu sınıra yaklaşabilir;
   hata görürsen Workers Paid planına geç ya da en uzun dönemi "Son 1 yıl" ile sınırla.
 - Google Haberler'e giden istekler Cloudflare'in IP'lerinden yapılır; Google bazen bu IP'lere kısıtlama uygulayabilir.
-  Sık hata görürsen `fetchWindow` içindeki kaynağı değiştir (bkz. Genişletme).
+  Sık hata görürsen sonuçların altındaki kaynak özetine bak; hatalı kaynağı kapatabilir ya da başka bir kaynak ekleyebilirsin (bkz. Genişletme).
+
+## Haber kaynakları
+
+Aynı arama birden çok kaynakta paralel çalışır; sonuçlar birleştirilir, tekrarlar tek satıra indirilir (`+2 kaynakta daha`).
+Formdaki **Kaynaklar** kutularıyla istediğin kaynakları aç/kapat. Sonuçların altında her kaynağın kaç haber verdiği,
+hangisinin hata verdiği görünür; biri bozulsa diğerleri çalışmaya devam eder.
+
+| Kaynak | Kapsam | Not |
+|---|---|---|
+| **Google Haberler** | Geçmiş ve güncel. Uzun aralıklar 12 döneme bölünür | Resmî API değil. Bazı ülkelerde ayrı sürümü yok |
+| **GDELT** | Son ~3 ay. Yayıncının ülkesine göre, çok dilli | Anahtarsız. Google sürümü olmayan ülkelerde en yararlı kaynak. Aşırı kullanımda hız sınırı uygular |
+| **Bing Haberler** | Son 30 gün | Resmî olmayan RSS. Sorgu başına az sonuç verir |
+| **Yayıncı akışları** | Güncel (son günler) | `data/feeds.js` içindeki RSS adresleri. Başlıkta şehir/konu/ülke adı geçenler alınır |
+| **Sosyal medya hesapları** | Güncel | Yalnızca **senin tanımladığın** herkese açık hesaplar. Varsayılan liste boştur |
+
+Sosyal medya doğrulanmamış içeriktir; bu yüzden ayrı etiketle gösterilir ve ayrı süzülebilir. Resmî ve doğrulanmış hesapları seç.
+Facebook, Instagram, TikTok ve X için ücretsiz, herkese açık bir arama/akış yolu yoktur; bu yüzden desteklenmez.
+
+### Akış / hesap eklemek
+
+Hepsi RSS ya da Atom adresidir:
+
+| Tür | Adres biçimi |
+|---|---|
+| Mastodon hesabı | `https://<sunucu>/@<hesap>.rss` |
+| Bluesky hesabı | `https://bsky.app/profile/<hesap>/rss` |
+| YouTube kanalı | `https://www.youtube.com/feeds/videos.xml?channel_id=<UC...>` |
+| Yayıncı | Sitenin RSS adresi |
+
+`data/feeds.js` dosyasına ekle ya da kodu değiştirmeden `EXTRA_FEEDS` ortam değişkeniyle (JSON) ver:
+
+```
+EXTRA_FEEDS=[{"name":"Hesabın adı","url":"https://mastodon.social/@hesap.rss","kind":"social","countries":["TR"]}]
+```
+
+`kind`: `news` ya da `social`. `countries`: gösterileceği ülke kodları; `["*"]` her ülkede, ama başlıkta ülke ya da şehir adı geçmesi gerekir.
+Sunucu yalnızca bu listedeki adreslere gider (kullanıcıdan adres alınmaz).
 
 ## Nasıl çalışır?
 
-- Haberler **Google Haberler RSS** akışından gelir (anahtar gerekmez). Tarayıcı doğrudan çağıramadığı için
-  `server.js` (Node) ya da `worker.mjs` (Cloudflare) isteği vekil olarak yapar, RSS'i JSON'a çevirir ve 10 dakika önbellekte tutar. Ortak mantık `lib/news.js` içindedir.
-- **Ülke** seçimi Google Haberler'in ilgili ülke/dil sürümünü seçer (`data/meta.js`).
-- **Şehir** sorguya tırnaklı eklenir; listede yoksa "Başka şehir…" ile serbest yazılır.
+- `server.js` (Node) ya da `worker.mjs` (Cloudflare) kaynakları çağırır, sonuçları JSON'a çevirir ve 10 dakika önbellekte tutar.
+  Ortak mantık `lib/news.js`, her kaynak `lib/providers/` altındadır.
+- **Ülke** seçimi Google Haberler'in ilgili ülke/dil sürümünü, GDELT'te yayıncı ülkesini (FIPS kodu) seçer.
+- **Şehir** sorguya tırnaklı eklenir; listede yoksa "Başka şehir…" ile serbest yazılır. `a / b` yazımı iki yazımı da arar.
 - **Konu**, o ülkenin diline çevrilmiş anahtar kelimelerle `OR` sorgusuna dönüşür
   (ör. Eğitim → `eğitim OR okul OR üniversite OR öğretmen`). Anahtar kelime alanı sorguyu daraltır.
-- **Geçmiş haberler** için `after:`/`before:` tarih operatörleri kullanılır. Google tek sorguda en fazla ~100 sonuç
-  verdiğinden, 62 günden uzun aralıklar en fazla 12 eşit döneme bölünür ve her dönemin öne çıkan haberleri
-  paralel çekilir. Üstteki zaman çizelgesindeki çubuğa tıklayarak tek bir döneme odaklanılır.
+- **Geçmiş haberler** için Google'da `after:`/`before:` tarih operatörleri kullanılır. Google tek sorguda en fazla ~100 sonuç
+  verdiğinden, 62 günden uzun aralıklar en fazla 12 eşit döneme bölünür. Üstteki zaman çizelgesinden bir döneme odaklanılır.
 - Seçimler adres çubuğuna yazılır; bağlantı paylaşılınca aynı arama otomatik açılır.
 
 ## Genişletme
 
 - Yeni ülke: `data/meta.js` içindeki `COUNTRIES` listesine `hl`/`ceid` değerleriyle ekle.
 - Yeni konu: `TOPICS` ve `TOPIC_TERMS` içine ekle (dili olmayan ülkeler İngilizce terimlere düşer).
-- Farklı bir kaynak (ör. GDELT, NewsAPI) için yalnızca `lib/news.js` içindeki `fetchWindow` değiştirilir.
+- Yeni bir kaynak (ör. NewsAPI): `lib/providers/` altına `id`, `label`, `kind`, `skip(ctx, deps)` ve `fetch(ctx, deps)` olan bir modül yaz, `lib/providers/index.js` listesine ekle.
 
 ## Sınırlar
 
-- Google Haberler resmi bir API değildir; biçimi veya erişim kuralları değişebilir.
+- Google Haberler, Bing ve GDELT'in kullandığım uçları resmî/garantili API değildir; biçim ya da erişim kuralları değişebilir. Hiçbirini canlıda denemedim: ilk kullanımda hangi kaynağın çalıştığı sonuçların altındaki kaynak özetinde görünür.
 - Eski haberlerin bağlantıları yayıncı tarafından kaldırılmış olabilir.
 - Arnavutluk, Kosova, Kuzey Makedonya, Karadağ, İran, Afganistan, Tunus ve Gambiya için Google Haberler'de ayrı bir sürüm
   olmayabilir (`data/meta.js` içinde `approximate: true`). Bu ülkelerde arama yerel dildeki terimlerle ve ülke adıyla yapılır;

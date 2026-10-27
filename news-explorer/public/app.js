@@ -5,6 +5,7 @@
   const el = {
     form: $('search'), country: $('country'), city: $('city'), cityCustom: $('cityCustom'), cityCustomWrap: $('cityCustomWrap'),
     countryNote: $('countryNote'), lang: $('lang'), viewOriginal: $('viewOriginal'), viewTr: $('viewTr'), langNote: $('langNote'), topic: $('topic'), range: $('range'), from: $('from'), to: $('to'), keyword: $('keyword'), go: $('go'),
+    kind: $('kind'), sourceBoxes: $('sourceBoxes'), srcSummary: $('srcSummary'),
     status: $('status'), timeline: $('timeline'), toolbar: $('toolbar'), filter: $('filter'), sort: $('sort'), list: $('list'),
   };
   const CUSTOM_CITY = '__custom';
@@ -31,6 +32,41 @@
   const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
   const option = (value, text, selected) => Object.assign(document.createElement('option'), { value, textContent: text, selected: !!selected });
+
+  // Kaynak seçimi: varsayılan hepsi açık; seçim tarayıcıda hatırlanır.
+  function renderSourceBoxes(selected) {
+    if (selected && !selected.some((id) => meta.sources.some((x) => x.id === id))) selected = null; // eski/geçersiz kayıt: hepsi açık
+    el.sourceBoxes.replaceChildren(...meta.sources.map((src) => {
+      const label = document.createElement('label');
+      const box = Object.assign(document.createElement('input'), { type: 'checkbox', value: src.id, checked: !selected || selected.includes(src.id) });
+      label.append(box, src.label);
+      if (src.kind === 'social') label.append(Object.assign(document.createElement('small'), { textContent: '(doğrulanmamış olabilir)' }));
+      return label;
+    }));
+  }
+
+  const checkedSources = () => [...el.sourceBoxes.querySelectorAll('input:checked')].map((b) => b.value);
+
+  function renderSourceSummary() {
+    const list = data?.sources || [];
+    el.srcSummary.hidden = !list.length;
+    el.srcSummary.replaceChildren(...list.map((src) => {
+      const li = document.createElement('li');
+      if (src.error) {
+        li.className = 'err';
+        li.textContent = `${src.label}: alınamadı`;
+        li.title = src.error;
+      } else if (src.skipped) {
+        li.className = 'skip';
+        li.textContent = `${src.label}: atlandı`;
+        li.title = src.skipped;
+      } else {
+        li.append(`${src.label} `, Object.assign(document.createElement('b'), { textContent: src.found }));
+        if (src.note) li.title = src.note;
+      }
+      return li;
+    }));
+  }
 
   // Türkiye başta, diğerleri Türkçe alfabeye göre.
   function fillCountries(selected) {
@@ -88,7 +124,10 @@
     if (!range.from || !range.to) return setStatus('Özel aralık için başlangıç ve bitiş tarihini seç.', 'error');
     if (range.from > range.to) return setStatus('Başlangıç tarihi bitişten sonra olamaz.', 'error');
 
-    const ui = { country: el.country.value, city: selectedCity(), topic: el.topic.value, range: el.range.value, q: el.keyword.value.trim() };
+    const sources = checkedSources();
+    if (!sources.length) return setStatus('En az bir haber kaynağı seç.', 'error');
+    const all = sources.length === meta.sources.length;
+    const ui = { country: el.country.value, city: selectedCity(), topic: el.topic.value, range: el.range.value, q: el.keyword.value.trim(), sources: all ? '' : sources.join(',') };
     if (ui.range === 'custom') Object.assign(ui, range);
     store.set(ui);
     writeUrl(Object.fromEntries(Object.entries(ui).filter(([, v]) => v)));
@@ -98,11 +137,11 @@
     el.go.disabled = true;
     el.go.textContent = 'Getiriliyor…';
     setStatus('Haberler getiriliyor…');
-    el.timeline.hidden = el.toolbar.hidden = true;
+    el.timeline.hidden = el.toolbar.hidden = el.srcSummary.hidden = true;
     el.list.replaceChildren();
 
     try {
-      const params = new URLSearchParams({ country: ui.country, city: ui.city, topic: ui.topic, q: ui.q, from: range.from, to: range.to });
+      const params = new URLSearchParams({ country: ui.country, city: ui.city, topic: ui.topic, q: ui.q, sources: ui.sources, from: range.from, to: range.to });
       const res = await fetch(`/api/news?${params}`, { signal: controller.signal });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || `Sunucu hatası (${res.status})`);
@@ -127,11 +166,16 @@
     const failed = data.windows.filter((w) => w.error).length;
     const note = failed ? ` ${failed} dönem alınamadı.` : '';
     setStatus(`${data.total} haber bulundu.${note} Arama:`, failed ? 'error' : '', data.query);
+    renderSourceSummary();
     renderTimeline();
+    const hasSocial = data.items.some((i) => i.kind === 'social');
+    el.kind.hidden = !hasSocial;
+    if (!hasSocial) el.kind.value = 'all';
 
     const q = el.filter.value.trim().toLocaleLowerCase('tr');
     let items = data.items.filter((it) =>
       (activeWindow === null || it.window === activeWindow) &&
+      (el.kind.value === 'all' || it.kind === el.kind.value) &&
       (!q || `${it.title} ${translations.get(it.title) || ''} ${it.source}`.toLocaleLowerCase('tr').includes(q)));
     if (el.sort.value === 'asc') items = items.slice().reverse();
 
@@ -204,8 +248,10 @@
     if (tr && tr !== it.title) parts.push(Object.assign(document.createElement('div'), { className: 'o', textContent: it.title, dir: 'auto' }));
     const m = document.createElement('div');
     m.className = 'm';
+    if (it.kind === 'social') m.append(Object.assign(document.createElement('span'), { className: 'badge social', textContent: 'Sosyal medya · doğrulanmamış' }));
     if (it.source) m.append(Object.assign(document.createElement('span'), { className: 'src', textContent: it.source }));
     if (it.published) m.append(Object.assign(document.createElement('span'), { textContent: fmtTime.format(new Date(it.published)) }));
+    if (it.alsoIn?.length) m.append(Object.assign(document.createElement('span'), { className: 'badge', textContent: `+${it.alsoIn.length} kaynakta daha`, title: it.alsoIn.join(', ') }));
     a.append(...parts, m);
     return a;
   }
@@ -278,6 +324,7 @@
     fillCountries(meta.countries.some((c) => c.code === saved.country) ? saved.country : 'TR');
     fillCities(saved.city || '');
     syncCountryNote();
+    renderSourceBoxes(saved.sources ? saved.sources.split(',') : null);
     el.topic.replaceChildren(...meta.topics.map((t) => option(t.id, `${t.icon} ${t.label}`, t.id === saved.topic)));
     if ([...el.range.options].some((o) => o.value === saved.range)) el.range.value = saved.range;
     el.from.value = saved.from || iso(daysAgo(365));
@@ -292,6 +339,7 @@
     el.range.addEventListener('change', syncCustomRange);
     el.filter.addEventListener('input', render);
     el.sort.addEventListener('change', render);
+    el.kind.addEventListener('change', render);
     el.viewOriginal.addEventListener('click', () => setView('original'));
     el.viewTr.addEventListener('click', () => setView('tr'));
     el.form.addEventListener('submit', (e) => { e.preventDefault(); runSearch(); });

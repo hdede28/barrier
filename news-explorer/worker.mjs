@@ -4,10 +4,16 @@ import { COUNTRIES, TOPICS } from './data/meta.js';
 import { HttpError } from './lib/query.js';
 import { getNews, createMemoryCache, CACHE_TTL_MS } from './lib/news.js';
 import { translatorFromEnv, translationResponse } from './lib/translators.js';
+import { createProviders, describe } from './lib/providers/index.js';
+import { loadFeeds } from './data/feeds.js';
 
 const memory = createMemoryCache();
 
 // Çevirmen isolate başına bir kez kurulur (önbelleği ve günlük sayacı orada tutulur).
+let providers;
+const getProviders = (env) => (providers ||= createProviders({ feeds: loadFeeds(env) }));
+const baseUrls = (env) => Object.fromEntries(Object.entries({ gdelt: env.GDELT_BASE_URL, bing: env.BING_BASE_URL }).filter(([, v]) => v));
+
 let translator;
 const getTranslator = (env) => (translator === undefined ? (translator = translatorFromEnv(env)) : translator);
 
@@ -45,11 +51,13 @@ export default {
       }
       if (request.method !== 'GET') return json({ error: 'Yalnızca GET desteklenir.' }, 405);
       if (url.pathname === '/api/meta') {
-        return json({ countries: COUNTRIES, topics: TOPICS, translation: getTranslator(env)?.provider || false }, 200, { 'cache-control': 'public, max-age=300' });
+        return json({ countries: COUNTRIES, topics: TOPICS, sources: describe(getProviders(env)), translation: getTranslator(env)?.provider || false }, 200, { 'cache-control': 'public, max-age=300' });
       }
       if (url.pathname === '/api/news') {
         const body = await getNews(url.searchParams, {
-          newsBase: env.GOOGLE_NEWS_BASE || 'https://news.google.com',
+          newsBase: env.GOOGLE_NEWS_BASE,
+          bases: baseUrls(env),
+          providers: getProviders(env),
           cache: edgeCache(url.origin),
         });
         return json(body);

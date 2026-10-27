@@ -7,13 +7,13 @@ const { createMockGoogleNews } = require('./mock-google-news');
 
 async function start(mockOpts) {
   const mock = await createMockGoogleNews(mockOpts);
-  const app = createServer({ newsBase: mock.base });
+  const app = createServer({ newsBase: mock.base, bases: {}, feeds: [] });
   await new Promise((r) => app.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${app.address().port}`;
   return { mock, base, stop: () => { app.close(); mock.close(); } };
 }
 
-const qs = (o) => new URLSearchParams(o).toString();
+const qs = (o) => new URLSearchParams({ sources: 'google', ...o }).toString();
 
 test('GET /api/meta ülke ve konu listesini verir', async () => {
   const { base, stop } = await start();

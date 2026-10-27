@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { createMockGoogleNews } = require('./mock-google-news');
 
 const load = () => import('../worker.mjs').then((m) => m.default);
-const qs = (o) => new URLSearchParams(o).toString();
+const qs = (o) => new URLSearchParams({ sources: 'google', ...o }).toString();
 
 test('worker: /api/meta, /api/news, hata ve yöntem kontrolleri', async () => {
   const worker = await load();
