@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Haber Atlası</title>
+  <meta name="description" content="Ülke, şehir ve konuya göre güncel ve geçmiş haberleri tara.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <h1>Haber Atlası</h1>
+      <p>Bir ülke, şehir ve konu seç; o alandaki güncel ve geçmiş haberleri zaman çizelgesiyle gör.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <form id="search" class="panel" autocomplete="off">
+      <div class="grid">
+        <label>Ülke
+          <select id="country" name="country" required></select>
+        </label>
+        <label>Şehir
+          <select id="city" name="city"></select>
+        </label>
+        <label id="cityCustomWrap" hidden>Şehir adı
+          <input id="cityCustom" type="text" maxlength="80" placeholder="Örn. Eskişehir">
+        </label>
+        <label>Konu
+          <select id="topic" name="topic"></select>
+        </label>
+        <label>Dönem
+          <select id="range" name="range">
+            <option value="2">Bugün ve dün</option>
+            <option value="7">Son 7 gün</option>
+            <option value="30" selected>Son 30 gün</option>
+            <option value="365">Son 1 yıl</option>
+            <option value="1825">Son 5 yıl</option>
+            <option value="custom">Özel aralık…</option>
+          </select>
+        </label>
+        <label class="custom-date" hidden>Başlangıç
+          <input id="from" type="date" min="2000-01-01">
+        </label>
+        <label class="custom-date" hidden>Bitiş
+          <input id="to" type="date" min="2000-01-01">
+        </label>
+        <label class="wide">Anahtar kelime (isteğe bağlı)
+          <input id="keyword" type="text" maxlength="120" placeholder="Örn. burs, deprem, yapay zeka">
+        </label>
+      </div>
+      <div class="actions">
+        <button type="submit" id="go">Haberleri getir</button>
+        <span class="hint">Uzun dönemlerde aralık eşit parçalara bölünür; her dönemin öne çıkan haberleri getirilir.</span>
+      </div>
+    </form>
+
+    <section id="out" aria-live="polite">
+      <div id="status" class="status" hidden></div>
+      <div id="timeline" class="timeline" hidden></div>
+      <div id="toolbar" class="toolbar" hidden>
+        <input id="filter" type="search" placeholder="Sonuçlarda ara (başlık veya kaynak)" aria-label="Sonuçlarda ara">
+        <select id="sort" aria-label="Sıralama">
+          <option value="desc">Yeniden eskiye</option>
+          <option value="asc">Eskiden yeniye</option>
+        </select>
+      </div>
+      <div id="list"></div>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    Haberler Google Haberler RSS akışından alınır; başlıklar ve bağlantılar ilgili yayıncılara aittir.
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>

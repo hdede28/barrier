@@ -1,0 +1,12 @@
+{
+  "name": "haber-atlasi",
+  "version": "1.0.0",
+  "description": "Ülke, şehir ve konuya göre güncel ve geçmiş haberleri gösteren küçük web uygulaması",
+  "private": true,
+  "license": "GPL-2.0-only",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  }
+}
