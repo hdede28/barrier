@@ -19,6 +19,13 @@ const SYSTEM = [
   'If a headline is already Turkish, return it unchanged.',
 ].join(' ');
 
+function validateTexts(texts) {
+  if (!Array.isArray(texts) || !texts.length || texts.length > MAX_TEXTS ||
+      !texts.every((t) => typeof t === 'string' && t.length <= MAX_TEXT_LENGTH)) {
+    throw new HttpError(400, `En fazla ${MAX_TEXTS} başlık gönderilebilir (her biri en çok ${MAX_TEXT_LENGTH} karakter).`);
+  }
+}
+
 function parseTranslations(text, expected) {
   const start = text.indexOf('[');
   const end = text.lastIndexOf(']');
@@ -69,10 +76,7 @@ function createTranslator({ apiKey, model, dailyLimit, baseURL, client } = {}) {
   }
 
   async function translate(texts) {
-    if (!Array.isArray(texts) || !texts.length || texts.length > MAX_TEXTS ||
-        !texts.every((t) => typeof t === 'string' && t.length <= MAX_TEXT_LENGTH)) {
-      throw new HttpError(400, `En fazla ${MAX_TEXTS} başlık gönderilebilir (her biri en çok ${MAX_TEXT_LENGTH} karakter).`);
-    }
+    validateTexts(texts);
     const missing = [...new Set(texts.filter((t) => t.trim() && !cache.has(t)))];
     if (missing.length) {
       spend(missing.length);
@@ -102,16 +106,7 @@ function createTranslator({ apiKey, model, dailyLimit, baseURL, client } = {}) {
     return texts.map((t) => cache.get(t) ?? t);
   }
 
-  return { translate, model: modelId };
+  return { translate, model: modelId, provider: 'claude' };
 }
 
-function translatorFromEnv(env = process.env) {
-  return createTranslator({
-    apiKey: env.ANTHROPIC_API_KEY,
-    model: env.TRANSLATE_MODEL,
-    dailyLimit: env.TRANSLATE_DAILY_LIMIT,
-    baseURL: env.ANTHROPIC_BASE_URL,
-  });
-}
-
-module.exports = { createTranslator, translatorFromEnv, MAX_TEXTS };
+module.exports = { createTranslator, validateTexts, MAX_TEXTS };

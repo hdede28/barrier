@@ -49,4 +49,4 @@ function parseRss(xml, limit = Infinity) {
   return items;
 }
 
-module.exports = { parseRss };
+module.exports = { parseRss, decode };

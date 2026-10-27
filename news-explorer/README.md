@@ -1,7 +1,7 @@
 # Haber Atlası
 
 Ülke, şehir ve konu seçerek o alandaki **güncel ve geçmiş** haberleri gösteren küçük bir web uygulaması.
-Tek bağımlılık Türkçe çeviri için `@anthropic-ai/sdk`; Node.js 20+ gerekir. Çeviri isteğe bağlıdır, anahtar yoksa uygulama yalnızca orijinal dilde çalışır.
+Tek bağımlılık `@anthropic-ai/sdk` (isteğe bağlı Claude çevirisi için); Node.js 20+ gerekir.
 
 ```sh
 cd news-explorer
@@ -14,21 +14,35 @@ npm test             # sahte haber kaynağıyla uçtan uca testler
 
 ## Türkçe çeviri
 
-Sonuçların üstündeki **Orijinal dil | Türkçe** düğmesi başlıkları Claude API ile Türkçeye çevirir; çeviri açıkken orijinal başlık
+Sonuçların üstündeki **Orijinal dil | Türkçe** düğmesi başlıkları Türkçeye çevirir; çeviri açıkken orijinal başlık
 her haberin altında kalır. Türkiye seçiliyken düğme görünmez. Yalnızca başlıklar çevrilir, haber metinleri değil.
 
-Etkinleştirmek için sunucuya şu ortam değişkenlerini ver (anahtarı kod ya da sohbete yazma):
+İki çeviri servisi vardır, sunucu hangisini kullanacağını kendisi seçer:
+
+| | Ücretsiz (varsayılan) | Claude API |
+|---|---|---|
+| Ne zaman | `ANTHROPIC_API_KEY` yoksa | `ANTHROPIC_API_KEY` varsa |
+| Servis | [MyMemory](https://mymemory.translated.net) | Anthropic Claude |
+| Maliyet | Ücretsiz | Kullandıkça öder |
+| Kota | Günde ~4.500 karakter (~60 başlık); `MYMEMORY_EMAIL` verilirse ~45.000 | `TRANSLATE_DAILY_LIMIT` (varsayılan 2000 başlık) |
+| Kalite | Basit, bazen hatalı | Yüksek |
+
+Ücretsiz serviste kota dolarsa çevrilebilen başlıklar çevrilir, kalanı orijinal dilinde kalır ve ekranda uyarı çıkar.
+Kota sunucunun IP adresine bağlı olabilir; ortak IP kullanan barındırma servislerinde başkalarıyla paylaşılabilir.
 
 | Değişken | Anlamı |
 |---|---|
-| `ANTHROPIC_API_KEY` | Zorunlu. [console.anthropic.com](https://console.anthropic.com) üzerinden alınır. Yoksa çeviri kapalı kalır. |
-| `TRANSLATE_MODEL` | İsteğe bağlı. Varsayılan `claude-opus-5-5`. Çok daha ucuz bir seçenek: `claude-haiku-5-5`. |
-| `TRANSLATE_DAILY_LIMIT` | İsteğe bağlı. Günlük en fazla kaç benzersiz başlık çevrilsin (varsayılan 2000). Herkese açık bir adreste maliyeti sınırlar. |
+| `MYMEMORY_EMAIL` | İsteğe bağlı. Geçerli bir e-posta verilirse MyMemory günlük kotayı büyütür. |
+| `MYMEMORY_DAILY_CHARS` | İsteğe bağlı. Günlük karakter sınırını elle ayarlar. |
+| `ANTHROPIC_API_KEY` | İsteğe bağlı. [console.anthropic.com](https://console.anthropic.com) anahtarı; verilirse Claude kullanılır. |
+| `TRANSLATE_MODEL` | İsteğe bağlı. Claude modeli, varsayılan `claude-opus-5-5`. Çok daha ucuz: `claude-haiku-5-5`. |
+| `TRANSLATE_DAILY_LIMIT` | İsteğe bağlı. Claude için günlük en fazla benzersiz başlık sayısı. |
 
-- Başlıklar 40'lık gruplar halinde çevrilir; aynı başlık tekrar çevrilmez (bellekte önbelleklenir).
-- Başlıklar modele "çevrilecek veri" olarak JSON içinde gönderilir; başlık içindeki talimatlar uygulanmaz.
-- Sayaç ve önbellek sunucu yeniden başlayınca sıfırlanır.
-- Render'da: servis → **Environment** → **Add Environment Variable**. Cloudflare'de: `npx wrangler secret put ANTHROPIC_API_KEY`.
+- Claude'da başlıklar 40'lık gruplar halinde çevrilir ve talimat değil, çevrilecek veri olarak JSON içinde gönderilir.
+- Aynı başlık tekrar çevrilmez (bellekte önbelleklenir). Sayaç ve önbellek sunucu yeniden başlayınca sıfırlanır.
+- Render'da değişken eklemek: servis → **Environment** → **Add Environment Variable**.
+  Cloudflare'de: `npx wrangler secret put ANTHROPIC_API_KEY`.
+- Tarayıcının yerleşik çeviri API'si (Chrome masaüstü) kullanılmıyor; telefonlarda çalışmadığı için.
 
 ## Yayına alma: en kolay yol (Render, terminal gerekmez)
 

@@ -19,7 +19,7 @@
   let controller = null;
   let view = 'original';
   let searchedCountry = '';
-  let translationOn = false;
+  let provider = false; // 'claude' | 'mymemory' | false
   const translations = new Map(); // orijinal başlık -> Türkçe
   let translateRun = 0;
 
@@ -216,11 +216,16 @@
     el.lang.hidden = !foreign;
     el.viewOriginal.setAttribute('aria-pressed', String(view === 'original'));
     el.viewTr.setAttribute('aria-pressed', String(view === 'tr'));
-    el.viewTr.disabled = !translationOn;
-    el.viewTr.title = translationOn ? '' : 'Çeviri bu sunucuda kapalı';
-    el.langNote.hidden = !foreign || translationOn;
-    el.langNote.textContent = 'Türkçe çeviri için sunucuda ANTHROPIC_API_KEY tanımlı olmalı. Şimdilik başlıklar orijinal dilinde gösteriliyor.';
+    el.viewTr.disabled = !provider;
+    el.viewTr.title = provider ? '' : 'Çeviri bu sunucuda kapalı';
+    const note = provider === 'mymemory'
+      ? 'Ücretsiz çeviri servisi kullanılıyor: günlük kotası sınırlı ve kalitesi daha basit olabilir. Kota dolarsa kalan başlıklar orijinal dilinde kalır.'
+      : provider ? '' : 'Bu sunucuda çeviri kapalı. Başlıklar orijinal dilinde gösteriliyor.';
+    el.langNote.hidden = !foreign || !note;
+    el.langNote.textContent = note;
   }
+
+  const sourceLang = () => (meta.countries.find((c) => c.code === searchedCountry)?.hl || 'en').split('-')[0];
 
   async function setView(next) {
     if (next === view || !data) return;
@@ -228,33 +233,42 @@
     if (next === 'original') { view = 'original'; return render(); }
     const pending = [...new Set(data.items.map((i) => i.title).filter((t) => t && !translations.has(t)))];
     el.viewTr.disabled = el.viewOriginal.disabled = true;
+    let warning = '';
+    let failure = null;
     try {
       for (let i = 0; i < pending.length; i += 40) {
         setStatus(`Türkçeye çevriliyor… ${Math.min(i + 40, pending.length)}/${pending.length}`);
         const chunk = pending.slice(i, i + 40);
-        const res = await fetch('/api/translate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts: chunk }) });
+        const res = await fetch('/api/translate', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ texts: chunk, source: sourceLang() }),
+        });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || `Çeviri başarısız (${res.status})`);
-        chunk.forEach((t, k) => translations.set(t, body.translations[k]));
+        chunk.forEach((t, k) => { if (typeof body.translations[k] === 'string') translations.set(t, body.translations[k]); });
+        if (body.warning) { warning = body.warning; break; } // kota doldu: kalanı denemenin anlamı yok
       }
-      if (run !== translateRun) return;
-      view = 'tr';
-      render();
     } catch (err) {
-      if (run !== translateRun) return;
-      view = 'original';
-      render();
-      setStatus(`${err.message} Başlıklar orijinal dilinde gösteriliyor.`, 'error');
-    } finally {
-      el.viewOriginal.disabled = false;
-      syncLang();
+      failure = err;
     }
+    if (run === translateRun) {
+      const translated = data.items.filter((i) => translations.has(i.title)).length;
+      // Hiç çeviri yoksa orijinalde kal; kısmi sonuç varsa göster ve uyar.
+      view = translated ? 'tr' : 'original';
+      render();
+      if (failure || warning) {
+        const msg = failure ? failure.message : warning;
+        setStatus(translated ? `${msg} ${translated}/${data.total} haber çevrildi, kalanı orijinal dilinde.` : `${msg} Başlıklar orijinal dilinde gösteriliyor.`, 'error');
+      }
+    }
+    el.viewOriginal.disabled = false;
+    syncLang();
   }
 
   async function init() {
     try {
       meta = await (await fetch('/api/meta')).json();
-      translationOn = Boolean(meta.translation);
+      provider = meta.translation || false;
     } catch {
       return setStatus('Uygulama verileri yüklenemedi. Sunucunun çalıştığından emin ol.', 'error');
     }

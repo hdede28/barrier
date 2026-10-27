@@ -6,7 +6,7 @@ const path = require('node:path');
 const { COUNTRIES, TOPICS } = require('./data/meta');
 const { HttpError } = require('./lib/query');
 const { getNews, createMemoryCache } = require('./lib/news');
-const { translatorFromEnv } = require('./lib/translate');
+const { translatorFromEnv, translationResponse } = require('./lib/translators');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
@@ -42,9 +42,10 @@ function createServer({ newsBase = process.env.GOOGLE_NEWS_BASE || 'https://news
   }
 
   async function handleTranslate(req) {
-    if (!translator) throw new HttpError(503, 'Çeviri bu sunucuda kapalı (ANTHROPIC_API_KEY tanımlı değil).');
+    if (!translator) throw new HttpError(503, 'Çeviri bu sunucuda kapalı.');
     const body = await readJson(req);
-    return { translations: await translator.translate(body?.texts), model: translator.model };
+    const translations = await translator.translate(body?.texts, { source: body?.source });
+    return translationResponse(translator, translations);
   }
 
   function sendJson(res, status, body) {
@@ -73,7 +74,7 @@ function createServer({ newsBase = process.env.GOOGLE_NEWS_BASE || 'https://news
       const url = new URL(req.url, 'http://localhost');
       if (req.method === 'POST' && url.pathname === '/api/translate') return sendJson(res, 200, await handleTranslate(req));
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Yalnızca GET desteklenir.' });
-      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, translation: Boolean(translator) });
+      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, translation: translator?.provider || false });
       if (url.pathname === '/api/news') return sendJson(res, 200, await handleNews(url));
       return serveStatic(url, res);
     } catch (err) {
