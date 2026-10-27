@@ -1,0 +1,4 @@
+/*
+  X-Content-Type-Options: nosniff
+  Content-Security-Policy: default-src 'self'; img-src 'self' data:; frame-ancestors 'none'
+  Referrer-Policy: no-referrer

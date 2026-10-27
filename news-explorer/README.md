@@ -11,10 +11,33 @@ npm test             # sahte haber kaynağıyla uçtan uca testler
 
 `PORT` ve `HOST` ortam değişkenleriyle adres değiştirilebilir (varsayılan: `127.0.0.1:3000`).
 
+## Yayına alma (Cloudflare Workers)
+
+Aynı kod Cloudflare Workers üzerinde de çalışır: `public/` statik dosya olarak, `/api/*` ise `worker.mjs` ile sunulur.
+Ücretsiz Cloudflare hesabı yeterlidir.
+
+```sh
+cd news-explorer
+npx wrangler login      # tarayıcıda Cloudflare hesabına giriş
+npx wrangler deploy     # https://haber-atlasi.<hesabınız>.workers.dev
+```
+
+Yerelde denemek için `npm run dev:worker` (http://127.0.0.1:8787).
+Depoyu Cloudflare panelinden bağlamak istersen (Workers Builds) kök dizin olarak `news-explorer` seç;
+deploy komutu `npx wrangler deploy` olur.
+
+Notlar:
+
+- Önbellek Cloudflare Cache API ile veri merkezi başına 10 dakika tutulur; sık aranan sorgular Google'a tekrar gitmez.
+- Ücretsiz planda bir isteğin CPU süresi kısadır (10 ms). Uzun dönemli (12 parçalı) ilk aramalar bu sınıra yaklaşabilir;
+  hata görürsen Workers Paid planına geç ya da en uzun dönemi "Son 1 yıl" ile sınırla.
+- Google Haberler'e giden istekler Cloudflare'in IP'lerinden yapılır; Google bazen bu IP'lere kısıtlama uygulayabilir.
+  Sık hata görürsen `fetchWindow` içindeki kaynağı değiştir (bkz. Genişletme).
+
 ## Nasıl çalışır?
 
 - Haberler **Google Haberler RSS** akışından gelir (anahtar gerekmez). Tarayıcı doğrudan çağıramadığı için
-  `server.js` isteği vekil olarak yapar, RSS'i JSON'a çevirir ve 10 dakika önbellekte tutar.
+  `server.js` (Node) ya da `worker.mjs` (Cloudflare) isteği vekil olarak yapar, RSS'i JSON'a çevirir ve 10 dakika önbellekte tutar. Ortak mantık `lib/news.js` içindedir.
 - **Ülke** seçimi Google Haberler'in ilgili ülke/dil sürümünü seçer (`data/meta.js`).
 - **Şehir** sorguya tırnaklı eklenir; listede yoksa "Başka şehir…" ile serbest yazılır.
 - **Konu**, o ülkenin diline çevrilmiş anahtar kelimelerle `OR` sorgusuna dönüşür
@@ -28,7 +51,7 @@ npm test             # sahte haber kaynağıyla uçtan uca testler
 
 - Yeni ülke: `data/meta.js` içindeki `COUNTRIES` listesine `hl`/`ceid` değerleriyle ekle.
 - Yeni konu: `TOPICS` ve `TOPIC_TERMS` içine ekle (dili olmayan ülkeler İngilizce terimlere düşer).
-- Farklı bir kaynak (ör. GDELT, NewsAPI) için yalnızca `server.js` içindeki `fetchWindow` değiştirilir.
+- Farklı bir kaynak (ör. GDELT, NewsAPI) için yalnızca `lib/news.js` içindeki `fetchWindow` değiştirilir.
 
 ## Sınırlar
 

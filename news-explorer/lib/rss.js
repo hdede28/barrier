@@ -25,11 +25,12 @@ const attr = (xml, name, a) => {
 const isHttpUrl = (u) => /^https?:\/\//i.test(u);
 
 // Google News RSS çıktısını [{title, link, source, sourceUrl, published}] listesine çevirir.
-function parseRss(xml) {
+// limit: yeterli haber toplanınca ayrıştırmayı bırakır (Worker CPU süresini kısa tutar).
+function parseRss(xml, limit = Infinity) {
   const items = [];
   const re = /<item>([\s\S]*?)<\/item>/gi;
   let m;
-  while ((m = re.exec(xml))) {
+  while (items.length < limit && (m = re.exec(xml))) {
     const block = m[1];
     const link = tag(block, 'link');
     if (!isHttpUrl(link)) continue;
