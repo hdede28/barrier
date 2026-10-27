@@ -3,6 +3,7 @@
 const { termsFor, findCountry } = require('../../data/meta');
 const { parseFeed } = require('../rss');
 const { mentions, namesOf } = require('../relevance');
+const { mentionsMaarif } = require('../../data/maarif');
 const { fetchText, errorText, daysAgo, inRange, norm, containsTerm, langOf } = require('./common');
 
 // Aynı sunucuya (ör. 9 YouTube akışı) aynı anda en fazla 3 istek: aksi halde 429/404 ile geri çevrilirler.
@@ -48,6 +49,7 @@ function createMatcher(ctx) {
     return termCache.get(feed);
   };
   return (it, feed) => {
+    if (ctx.mode === 'maarif') return mentionsMaarif(`${it.title} ${it.summary}`) && words.every((w) => norm(`${it.title} ${it.summary}`).includes(norm(w)));
     const text = norm(`${it.title} ${it.summary}`);
     if (!ctx.world) {
       const cityHit = cities.some((c) => containsTerm(text, c));
@@ -83,13 +85,14 @@ function createFeedProvider({ kind, feeds }) {
     kind,
     available: mine.length > 0,
     skip(ctx, { now }) {
+      if (ctx.mode === 'breaking' && kind === 'social') return 'Son dakika modunda kullanılmaz';
       if (!ctx.world && !mine.some((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code))) return 'Bu ülke için tanımlı akış yok';
       return ctx.windows.at(-1).to < daysAgo(now, MAX_AGE_DAYS) ? 'Akışlar yalnızca güncel haberleri kapsar' : null;
     },
     async fetch(ctx, { now }) {
       const forCountry = ctx.world ? mine : mine.filter((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code));
       // Konuya özel akışlar yalnızca o konuda (ya da "Genel"de) kullanılır.
-      const applicable = forCountry.filter((f) => !f.topics || ctx.topic === 'general' || f.topics.includes(ctx.topic));
+      const applicable = forCountry.filter((f) => ctx.mode === 'maarif' || !f.topics || ctx.topic === 'general' || f.topics.includes(ctx.topic));
       if (!applicable.length) return { items: [], note: 'Bu konu için tanımlı akış yok' };
       const startedAt = Date.now();
       const from = ctx.windows[0].from;

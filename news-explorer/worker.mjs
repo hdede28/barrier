@@ -7,6 +7,7 @@ import { translatorFromEnv, translationResponse } from './lib/translators.js';
 import { createProviders, describe } from './lib/providers/index.js';
 import { loadFeeds } from './data/feeds.js';
 import { diagnose, formatText } from './lib/diagnose.js';
+import { NAMES as MAARIF_NAMES } from './data/maarif.js';
 
 const memory = createMemoryCache();
 
@@ -52,7 +53,7 @@ export default {
       }
       if (request.method !== 'GET') return json({ error: 'Yalnızca GET desteklenir.' }, 405);
       if (url.pathname === '/api/meta') {
-        return json({ countries: COUNTRIES, topics: TOPICS, world: WORLD, version: env.APP_VERSION || 'worker', sources: describe(getProviders(env)), translation: getTranslator(env)?.provider || false }, 200, { 'cache-control': 'public, max-age=300' });
+        return json({ countries: COUNTRIES, topics: TOPICS, world: WORLD, maarif: { names: MAARIF_NAMES }, version: env.APP_VERSION || 'worker', sources: describe(getProviders(env)), translation: getTranslator(env)?.provider || false }, 200, { 'cache-control': 'public, max-age=300' });
       }
       if (url.pathname === '/api/diagnose') {
         const report = await diagnose({ providers: getProviders(env), feeds: loadFeeds(env), bases: baseUrls(env), withFeeds: url.searchParams.get('feeds') === '1', version: env.APP_VERSION || 'worker' });

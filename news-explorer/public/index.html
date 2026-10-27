@@ -15,26 +15,31 @@
   <header class="hero">
     <div class="wrap">
       <h1><img class="logo" src="logo.jpg" width="780" height="420" alt="HD Haber"></h1>
-      <p>Bir ülke, şehir ve konu seç; o alandaki güncel ve geçmiş haberleri zaman çizelgesiyle gör.</p>
+      <p>Ülke, şehir ve konuya göre güncel ve geçmiş haberler. Son dakika ve Türkiye Maarif Vakfı bölümleri.</p>
     </div>
   </header>
 
   <main class="wrap">
+    <nav class="tabs" id="tabs" aria-label="Bölümler">
+      <button type="button" data-mode="search" aria-pressed="true">🔎 Arama</button>
+      <button type="button" data-mode="breaking" aria-pressed="false">🔴 Son dakika</button>
+      <button type="button" data-mode="maarif" aria-pressed="false">🎓 Maarif Vakfı</button>
+    </nav>
     <form id="search" class="panel" autocomplete="off">
       <div class="grid">
-        <label>Ülke
+        <label data-modes="search breaking">Ülke
           <select id="country" name="country" required></select>
         </label>
-        <label>Şehir
+        <label data-modes="search breaking">Şehir
           <select id="city" name="city"></select>
         </label>
         <label id="cityCustomWrap" hidden>Şehir adı
           <input id="cityCustom" type="text" maxlength="80" placeholder="Örn. Eskişehir">
         </label>
-        <label>Konu
+        <label data-modes="search breaking">Konu
           <select id="topic" name="topic"></select>
         </label>
-        <label>Dönem
+        <label data-modes="search maarif">Dönem
           <select id="range" name="range">
             <option value="2">Bugün ve dün</option>
             <option value="7">Son 7 gün</option>
@@ -44,15 +49,32 @@
             <option value="custom">Özel aralık…</option>
           </select>
         </label>
-        <label class="custom-date" hidden>Başlangıç
+        <label class="custom-date" data-modes="search maarif" hidden>Başlangıç
           <input id="from" type="date" min="2000-01-01">
         </label>
-        <label class="custom-date" hidden>Bitiş
+        <label class="custom-date" data-modes="search maarif" hidden>Bitiş
           <input id="to" type="date" min="2000-01-01">
+        </label>
+        <label data-modes="breaking" id="hoursWrap" hidden>Süre
+          <select id="hours">
+            <option value="1">Son 1 saat</option>
+            <option value="3" selected>Son 3 saat</option>
+            <option value="6">Son 6 saat</option>
+            <option value="24">Son 24 saat</option>
+          </select>
         </label>
         <label class="wide">Anahtar kelime (isteğe bağlı)
           <input id="keyword" type="text" maxlength="120" placeholder="Örn. burs, deprem, yapay zeka">
         </label>
+        <label class="wide check" data-modes="breaking" id="autoWrap" hidden>
+          <input id="auto" type="checkbox" checked>
+          <span>Otomatik yenile (90 saniyede bir) <small id="lastUpdate"></small></span>
+        </label>
+        <details class="wide maarif-box" id="maarifBox" data-modes="maarif" hidden>
+          <summary>Türkiye Maarif Vakfı: aranan adlar</summary>
+          <p class="hint">Vakfın adı bütün bu dillerde ve yazımlarda aranır; ilgisiz kurumlar (ör. Endonezya'daki "Ma'arif NU") elenir.</p>
+          <ul id="maarifNames" class="names"></ul>
+        </details>
         <label class="wide check" id="strictWrap">
           <input id="strict" type="checkbox" checked>
           <span>Başka ülkeleri konu alan başlıkları gizle <small>(ör. ABD seçiliyken Afganistan haberleri)</small></span>
@@ -101,6 +123,7 @@
         <select id="sort" aria-label="Sıralama">
           <option value="desc">Yeniden eskiye</option>
           <option value="asc">Eskiden yeniye</option>
+          <option value="sources">En çok kaynakta yer alan</option>
         </select>
       </div>
       <p id="langNote" class="note" role="note" hidden></p>

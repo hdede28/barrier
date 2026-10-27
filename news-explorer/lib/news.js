@@ -4,12 +4,27 @@ const { HttpError, parseSearchParams } = require('./query');
 const { createProviders, selectProviders, DEFAULT_BASES } = require('./providers');
 const { errorText } = require('./providers/common');
 const { foreignFocus, offTopic } = require('./relevance');
+const { clusterStories } = require('./cluster');
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 300;
 
 // Başlıkları "aynı haber mi?" diye kıyaslamak için: harf ve rakam dışını atar.
 const titleKey = (t) => t.toLocaleLowerCase('tr').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+// Aynı haberin farklı adresleri aynı sayılsın: izleme parametreleri, # parçası, sondaki / ve büyük/küçük harf farkı atılır.
+const TRACKING = /^(utm_|fbclid|gclid|mc_|ref$|ref_|oc$|cmpid|ocid|smid|source$)/i;
+function canonLink(link) {
+  try {
+    const u = new URL(link);
+    for (const k of [...u.searchParams.keys()]) if (TRACKING.test(k)) u.searchParams.delete(k);
+    u.hash = '';
+    u.hostname = u.hostname.toLowerCase().replace(/^www\./, '').replace(/^m\./, '');
+    return `${u.hostname}${u.pathname.replace(/\/+$/, '')}${u.search}`;
+  } catch {
+    return link;
+  }
+}
 
 function windowIndex(windows, published) {
   if (!published) return null;
@@ -39,13 +54,13 @@ async function search(ctx, providers, deps) {
     for (const it of run.items) {
       const tk = titleKey(it.title);
       const sameTitle = tk.length >= 15 ? byTitle.get(tk) : null;
-      const dup = byLink.get(it.link) || (sameTitle && sameTitle.provider !== run.p.id ? sameTitle : null);
+      const dup = byLink.get(canonLink(it.link)) || (sameTitle && sameTitle.provider !== run.p.id ? sameTitle : null);
       if (dup) {
         if (dup.provider !== run.p.id && !dup.alsoIn.includes(run.p.label)) dup.alsoIn.push(run.p.label);
         continue;
       }
       const item = { ...it, provider: run.p.id, kind: run.p.kind, alsoIn: [], window: it.window ?? windowIndex(ctx.windows, it.published) };
-      byLink.set(it.link, item);
+      byLink.set(canonLink(it.link), item);
       if (tk.length >= 15 && !sameTitle) byTitle.set(tk, item);
       items.push(item);
     }
@@ -53,14 +68,19 @@ async function search(ctx, providers, deps) {
   // Süzgeçler: (1) ülke seçiliyken başlığı başka bir ülkeyi/bölgeyi konu alan, (2) konu seçiliyken başlığı o konuyla ilgisiz haberler.
   const hiddenBy = { country: 0, topic: 0 };
   const own = ctx.city ? ctx.city.split('/').map((c) => c.trim()).filter(Boolean) : [];
-  const visible = items.filter((it) => {
+  // Son dakika: yalnızca son N saatte yayınlanmış ve tarihi bilinen haberler.
+  const fresh = ctx.mode === 'breaking' ? items.filter((it) => it.published && Date.parse(it.published) >= ctx.sinceMs) : items;
+  const passed = fresh.filter((it) => {
     if (ctx.strict && foreignFocus(it.title, ctx.country, own)) { hiddenBy.country++; return false; }
     // Konuya özel akıştan (ör. BBC Eğitim) gelen haber zaten konuya aittir.
     if (ctx.topicStrict && !it.topicTrusted && offTopic(it.title, ctx.topic, it.lang || 'en')) { hiddenBy.topic++; return false; }
     return true;
   });
-  const hidden = items.length - visible.length;
-  visible.sort((a, b) => (b.published || '').localeCompare(a.published || ''));
+  const hidden = hiddenBy.country + hiddenBy.topic;
+  // Benzer başlıklı haberler tek habere toplanır (kaç bağımsız kaynakta çıktığı story.count'ta). Sıra: en son güncellenen önce.
+  const visible = ctx.cluster ? clusterStories(passed) : passed;
+  const recency = (it) => it.story?.last || it.published || '';
+  visible.sort((a, b) => recency(b).localeCompare(recency(a)));
 
   const google = runs.find((r) => r.p.id === 'google');
   const counts = ctx.windows.map(() => 0);
@@ -74,6 +94,9 @@ async function search(ctx, providers, deps) {
     total: visible.length,
     hidden,
     hiddenBy,
+    mode: ctx.mode,
+    hours: ctx.hours || null,
+    generatedAt: new Date().toISOString(),
     world: ctx.world,
     items: visible,
     sources: runs.map((r) => ({
@@ -84,13 +107,15 @@ async function search(ctx, providers, deps) {
 }
 
 // cache: { get(key) -> body | undefined, set(key, body) } (eşzamansız olabilir)
-async function getNews(searchParams, { newsBase, bases = {}, cache, providers = createProviders(), now = new Date(), timing }) {
+async function getNews(searchParams, { newsBase, bases = {}, cache, providers = createProviders(), now = new Date(), timing, breakingTtl = 60 }) {
   const ctx = parseSearchParams(searchParams, now);
   const chosen = selectProviders(providers, ctx.sources);
   if (!chosen.length) throw new HttpError(400, 'Geçerli bir kaynak seçilmedi.');
   const deps = { bases: { ...DEFAULT_BASES, ...bases, ...(newsBase && { google: newsBase }) }, now, ...(timing && { timing }) };
 
-  const key = `${ctx.country.code}|${ctx.topic}|${ctx.city}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}|${ctx.strict}|${ctx.topicStrict}`;
+  // Son dakika önbelleği kısa tutulur (varsayılan 60 sn); 0 = önbellek yok
+  const bucket = ctx.mode === 'breaking' ? (breakingTtl > 0 ? Math.floor(Date.now() / (breakingTtl * 1000)) : Math.random()) : '';
+  const key = `${ctx.mode}|${ctx.hours}|${bucket}|${ctx.country.code}|${ctx.topic}|${ctx.city}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}|${ctx.strict}|${ctx.topicStrict}|${ctx.cluster}`;
   const hit = await cache?.get(key);
   if (hit) return { ...hit, cached: true };
 

@@ -54,7 +54,7 @@ button:disabled { opacity: .6; cursor: progress; }
 
 .group h3 { margin: 22px 0 8px; font-size: .95rem; color: var(--muted); text-transform: capitalize; display: flex; gap: 8px; align-items: baseline; }
 .group h3 small { font-weight: 500; text-transform: none; }
-.card { display: block; text-decoration: none; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; transition: border-color .15s, transform .15s; }
+.card { display: block; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; transition: border-color .15s, transform .15s; }
 .card:hover { border-color: var(--accent); transform: translateY(-1px); }
 .card .t { font-weight: 650; line-height: 1.35; }
 .card .m { margin-top: 4px; font-size: .82rem; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
@@ -96,3 +96,22 @@ label.check small { color: var(--muted); font-weight: 400; }
 .logo { display: block; width: min(300px, 78vw); height: auto; margin: 0 0 4px -14px;
   -webkit-mask-image: radial-gradient(ellipse 72% 76% at 50% 50%, #000 62%, transparent 100%);
   mask-image: radial-gradient(ellipse 72% 76% at 50% 50%, #000 62%, transparent 100%); }
+
+.tabs { display: flex; gap: 6px; margin: 0 0 10px; flex-wrap: wrap; }
+.tabs button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); padding: 9px 16px; border-radius: 999px; font-size: .92rem; box-shadow: var(--shadow); }
+.tabs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.card .t a { color: inherit; text-decoration: none; }
+.card .t a:hover { text-decoration: underline; }
+.card .t a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.card.fresh { border-color: var(--accent); }
+.badge.new { background: #c8102e; color: #fff; }
+.badge.story { background: var(--accent-soft); }
+.also { margin-top: 6px; font-size: .78rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.also a { color: var(--accent); text-decoration: none; }
+.also a:hover { text-decoration: underline; }
+.maarif-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.maarif-box summary { cursor: pointer; font-weight: 600; font-size: .9rem; }
+.names { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: .84rem; }
+.names li { overflow-wrap: anywhere; }
+.names b { display: inline-block; min-width: 2.2em; color: var(--muted); text-transform: uppercase; font-size: .75rem; }
+#lastUpdate { color: var(--muted); font-weight: 400; }

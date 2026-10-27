@@ -81,6 +81,48 @@ Notlar:
 - Google Haberler'e giden istekler Cloudflare'in IP'lerinden yapılır; Google bazen bu IP'lere kısıtlama uygulayabilir.
   Sık hata görürsen sonuçların altındaki kaynak özetine bak; hatalı kaynağı kapatabilir ya da başka bir kaynak ekleyebilirsin (bkz. Genişletme).
 
+## Son dakika
+
+Üstteki **🔴 Son dakika** sekmesi seçilen ülkenin ya da **tüm dünyanın** son 1 / 3 / 6 / 24 saatteki haberlerini gösterir.
+
+- Google Haberler'de `when:` operatörüyle son N saat, ayrıca sürümün "öne çıkan haberleri" (konu/şehir/kelime yoksa); Bing son 1/24 saat;
+  tüm yayıncı akışları. GDELT (hız sınırı), Mastodon, Reddit ve Hacker News bu sekmede kullanılmaz.
+- **Otomatik yenileme** 90 saniyede bir (kutudan kapatılır); sekme gizliyken beklenir. Yenilemede ilk kez görünen haberler **YENİ** etiketi alır.
+- Konu, şehir ve anahtar kelime burada da çalışır ("son dakika spor", "son dakika İstanbul").
+- Sunucu son dakika yanıtını 1 dakika önbellekte tutur (`BREAKING_CACHE_SECONDS` ile değişir; `0` = önbellek yok).
+
+## Haberleri aynı olay altında toplama
+
+Son dakika ve Maarif sekmelerinde (ve Arama'da `cluster=1` ile) başlıkları birbirine çok benzeyen haberler **tek habere** toplanır.
+Her haberde **"N kaynakta"** etiketi ve aynı haberi veren diğer kaynakların bağlantıları ("Aynı haber: Sabah, BBC Türkçe") görünür; sıralamada
+**"En çok kaynakta yer alan"** seçilebilir. Bir haberin birbirinden bağımsız birden çok kaynakta çıkması, tek kaynağa göre daha güçlü bir işarettir
+ama doğruluğun kanıtı değildir: kaynaklar aynı ajanstan (AA, Reuters…) beslenmiş olabilir ve sosyal medya ayrı sayılır.
+Karşılaştırma yalnızca aynı dildeki başlıklar arasında yapılır. Bağlantılardaki izleme parametreleri (`utm_*`, `fbclid`…), `#` parçası ve
+`www`/`m` farkı atılarak aynı haberin iki kez görünmesi engellenir.
+
+## Türkiye Maarif Vakfı bölümü
+
+**🎓 Maarif Vakfı** sekmesi, vakfın adını **30 dilde** (Türkçe, İngilizce, Arapça, Fransızca, Rusça, Arnavutça, Makedonca, Farsça, Azerice, Özbekçe,
+Endonezce, Japonca, Çince… `data/maarif.js`) tüm dünyada arar. Dönem seçilir (varsayılan son 30 gün, 5 yıla kadar).
+
+- Google Haberler'de 18 yayın sürümü (Türkiye, İngiltere, ABD, Fransa, Suudi Arabistan, Mısır, Rusya, Almanya, Pakistan, Nijerya, Endonezya,
+  Fas, Arnavutluk, Kosova, Makedonya, Bosna-Hersek, Azerbaycan, Kazakistan) kendi dillerindeki adlarla ayrı sorgulanır.
+- GDELT ve Bing farklı yazı sistemlerini kapsayan kısa bir ad listesiyle, Mastodon `#maarif` benzeri etiketlerle taranır.
+- Yayıncı ve sosyal akışlarda yalnızca vakıftan söz eden haberler alınır. Tam ad ya da "maarif" + Türkiye işareti gerekir; böylece Endonezya'daki
+  "Ma'arif NU" gibi ilgisiz kurumlar elenir.
+- Aranan adlar sekmedeki "Aranan adlar" kutusunda görünür. Eksik bir yazım varsa `data/maarif.js` içindeki `NAMES` listesine ekle.
+- Kendi hesaplarını (vakfın resmî sosyal medya/YouTube hesapları) izlemek için `EXTRA_FEEDS` ile RSS adresini ekleyebilirsin (aşağıya bak).
+- Adların çevirileri benim yazdığım translitere edilmiş biçimlerdir; resmî yazımlardan farklı olabilirler.
+
+## Ülkeler
+
+Listede **65 ülke** var: Türkiye'nin komşuları ve yakın temasta olduğu ülkeler dahil (Azerbaycan, Gürcistan, Ermenistan, Irak, Suriye, Bulgaristan, Yunanistan,
+Kıbrıs, İran, Ukrayna, Romanya, Bosna-Hersek, Hırvatistan, Kazakistan, Özbekistan, Türkmenistan, Kırgızistan, Tacikistan, Lübnan, Ürdün, İsrail, Filistin, Katar, Kuveyt,
+Libya, Cezayir, Fas, Tunus, Sudan, Somali, Etiyopya, Kenya, Gana, Nijerya, Senegal, Gambiya, Pakistan, Afganistan, Bangladeş, Endonezya, Malezya, Güney Kore, Çin…),
+Balkan ülkeleri ve büyük batı ülkeleri. Her ülke için şehir listesi, ülkenin dilinde konu terimleri (21 dil) ve mümkünse yerel yayıncı akışları vardır.
+Google Haberler'de ayrı sürümü olmayan ülkelerde ("yaklaşık" uyarısı çıkan) arama yerel adla yapılır, sonuçlar daha az olabilir.
+Yeni ülke eklemek için `data/meta.js` (ülke), `data/feeds.js` (takma adlar, akışlar) dosyalarına bak.
+
 ## Dünya geneli arama
 
 Ülke listesinin başındaki **🌍 Tüm dünya** seçeneği tek bir ülkeye bağlı kalmadan arar. Bir **konu** seç (ör. Eğitim) ya da

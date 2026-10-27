@@ -74,6 +74,17 @@ function createMockGoogleNews({ perRequest = 40, fail = false, gdeltFail = false
       ] }));
     }
 
+    if (url.pathname === '/feeds/maarif.xml') {
+      const it = (h, title, n) => `<item><title>${esc(title)}</title><link>https://maarif-site.example/${n}</link><pubDate>${hoursAgo(h).toUTCString()}</pubDate><description>${esc(title)}</description></item>`;
+      res.writeHead(200, { 'content-type': 'application/rss+xml' });
+      return res.end(rss([
+        it(5, "Türkiye Maarif Vakfı Nijer'de yeni okul açtı", 0),
+        it(6, "Ma'arif NU holds annual meeting in Jakarta", 1),
+        it(7, 'Turkish Maarif Foundation signs deal in Somalia', 2),
+        it(8, 'Galatasaray won the derby', 3),
+      ]));
+    }
+
     if (url.pathname === '/feeds/empty.xml') {
       res.writeHead(200, { 'content-type': 'text/html' });
       return res.end('<html><body>Access   denied\n  by bot protection</body></html>');
@@ -106,21 +117,32 @@ function createMockGoogleNews({ perRequest = 40, fail = false, gdeltFail = false
       ].join('')}</feed>`);
     }
 
+    // Google Haberler: /rss = "öne çıkan haberler" (sorgusuz), /rss/search = arama
+    if (url.pathname === '/rss') {
+      requests.push({ path: url.pathname, q: '', hl: url.searchParams.get('hl'), gl: url.searchParams.get('gl'), ceid: url.searchParams.get('ceid') });
+      const gl = url.searchParams.get('gl');
+      const items = Array.from({ length: 5 }, (_, i) => `<item><title>${esc(`Öne çıkan ${i} ${gl}`)}</title><link>https://top.example/${gl}/${i}</link><pubDate>${hoursAgo(0.3 * (i + 1)).toUTCString()}</pubDate><source url="https://top.example">Top Gazete</source></item>`);
+      res.writeHead(200, { 'content-type': 'application/rss+xml' });
+      return res.end(rss(items));
+    }
+
     // Google Haberler
     const q = url.searchParams.get('q') || '';
     requests.push({ path: url.pathname, q, hl: url.searchParams.get('hl'), gl: url.searchParams.get('gl'), ceid: url.searchParams.get('ceid') });
     if (fail) { res.writeHead(503); return res.end('down'); }
+    const when = /when:(\d+)([hd])/.exec(q);
     const after = /after:(\d{4}-\d{2}-\d{2})/.exec(q)?.[1];
     const before = /before:(\d{4}-\d{2}-\d{2})/.exec(q)?.[1];
-    const t0 = Date.parse(`${after}T00:00:00Z`);
-    const t1 = Date.parse(`${before}T00:00:00Z`);
+    // when:Nh → son N saat; aksi halde after/before aralığı
+    const t1 = when ? Date.now() : Date.parse(`${before}T00:00:00Z`);
+    const t0 = when ? t1 - Number(when[1]) * (when[2] === 'd' ? 24 : 1) * 3600000 : Date.parse(`${after}T00:00:00Z`);
     const items = [];
     for (let i = 0; i < perRequest; i++) {
       const when = new Date(t1 - ((i + 1) * (t1 - t0)) / (perRequest + 1));
       const src = ['Anadolu Ajansı', 'Hürriyet', 'BBC', 'Reuters'][i % 4];
       items.push(`<item>
   <title>${esc(`Haber ${i} – ${q.slice(0, 30)} - ${src}`)}</title>
-  <link>https://news.example.com/${url.searchParams.get('gl')}/${after}/${i}</link>
+  <link>https://news.example.com/${url.searchParams.get('gl')}/${after || 'when'}/${i}</link>
   <pubDate>${when.toUTCString()}</pubDate>
   <source url="https://${src.replace(/\W/g, '').toLowerCase()}.example.com">${src}</source>
 </item>`);

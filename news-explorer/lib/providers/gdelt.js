@@ -1,6 +1,7 @@
 'use strict';
 
 const { buildSearchQuery } = require('../query');
+const { COMPACT, quoted } = require('../../data/maarif');
 const { COUNTRIES } = require('../../data/meta');
 const { COUNTRY_ALIASES } = require('../../data/feeds');
 const { fetchText, errorText, daysAgo, langFromName, langOf, sleep } = require('./common');
@@ -64,7 +65,10 @@ module.exports = {
   id: 'gdelt',
   label: 'GDELT',
   kind: 'news',
-  skip: (ctx, { now }) => (ctx.windows.at(-1).to < daysAgo(now, MAX_AGE_DAYS) ? 'GDELT yalnızca son 3 ayı kapsar' : null),
+  skip: (ctx, { now }) => {
+    if (ctx.mode === 'breaking') return 'Son dakika modunda kullanılmaz (hız sınırı)';
+    return ctx.windows.at(-1).to < daysAgo(now, MAX_AGE_DAYS) ? 'GDELT yalnızca son 3 ayı kapsar' : null;
+  },
   async fetch(ctx, { bases, now, timing = { gdeltGap: 5500, retryWait: 6000 } }) {
     const oldest = daysAgo(now, MAX_AGE_DAYS);
     const from = ctx.windows[0].from < oldest ? oldest : ctx.windows[0].from;
@@ -72,7 +76,9 @@ module.exports = {
     // GDELT 3 karakterden kısa terimleri reddeder; ülke filtresi zaten sourcecountry ile yapılır.
     // Dünya aramasında ülke filtresi yok ve terimler İngilizcedir (GDELT İngilizce sorguyu çevrilmiş metinle eşleştirir; doğrulanmadı).
     const country = ctx.world ? { ...ctx.country, terms: ['en'] } : { ...ctx.country, approximate: false };
-    const text = buildSearchQuery({ ...ctx, country, minTermLength: 3, generalPerTopic: 1 });
+    const text = ctx.mode === 'maarif'
+      ? `(${quoted(COMPACT)})${ctx.keyword ? ` ${ctx.keyword}` : ''}`
+      : buildSearchQuery({ ...ctx, country, minTermLength: 3, generalPerTopic: 1 });
     const url = new URL('/api/v2/doc/doc', bases.gdelt);
     url.searchParams.set('query', ctx.world ? text : `${text} sourcecountry:${ctx.country.fips}`);
     url.searchParams.set('mode', 'artlist');

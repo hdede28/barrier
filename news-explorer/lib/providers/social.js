@@ -2,6 +2,7 @@
 
 const { termsFor } = require('../../data/meta');
 const { SUBREDDITS } = require('../../data/feeds');
+const { namesFor, quoted } = require('../../data/maarif');
 const { parseFeed } = require('../rss');
 const { fetchText, errorText, daysAgo, inRange, langOf } = require('./common');
 
@@ -37,14 +38,19 @@ const mastodon = {
   kind: 'social',
   available: true,
   skip(ctx, { now }) {
+    if (ctx.mode === 'breaking') return 'Son dakika modunda kullanılmaz';
     if (ctx.windows.at(-1).to < daysAgo(now, 30)) return 'Mastodon yalnızca güncel gönderileri kapsar';
+    if (ctx.mode === 'maarif') return null;
     const { topic, city, words } = searchTerms(ctx);
     return topic.length + city.length + words.length ? null : 'Konu, şehir ya da kelime gerekli';
   },
   async fetch(ctx, { bases, now }) {
     const { topic, city, words } = searchTerms(ctx);
     // Konu seçiliyken etiketler konudan (en fazla 4), yoksa şehir ve kelimelerden gelir; şehir/kelime her zaman eklenir.
-    const tags = [...new Set([...city, ...words, ...topic.slice(0, 4)].map(toTag).map((t) => t.toLowerCase()).filter((t) => t.length >= 3 && t.length <= 30))].slice(0, 6);
+    // Maarif modunda vakfın bilinen etiketleri.
+    const tags = ctx.mode === 'maarif'
+      ? ['maarif', 'maariffoundation', 'turkiyemaarifvakfi', 'turkishmaariffoundation', 'maarifvakfi']
+      : [...new Set([...city, ...words, ...topic.slice(0, 4)].map(toTag).map((t) => t.toLowerCase()).filter((t) => t.length >= 3 && t.length <= 30))].slice(0, 6);
     if (!tags.length) return { items: [] };
     const hosts = (bases.mastodon || 'https://mastodon.social,https://journa.host,https://mastodon.world,https://mstdn.social,https://mastodon.online').split(',');
     const jobs = hosts.flatMap((h) => tags.map((tag) => ({ host: h.trim(), tag })));
@@ -72,13 +78,15 @@ const reddit = {
   available: true,
   defaultOn: false, // Reddit bulut sunucularını (429) sistematik olarak engeller; istenirse elle açılır
   skip(ctx) {
+    if (ctx.mode === 'breaking') return 'Son dakika modunda kullanılmaz';
     const { topic, city, words } = searchTerms(ctx);
-    return ctx.world && !topic.length && !city.length && !words.length ? 'Konu ya da kelime gerekli' : null;
+    return ctx.mode !== 'maarif' && ctx.world && !topic.length && !city.length && !words.length ? 'Konu ya da kelime gerekli' : null;
   },
   async fetch(ctx, { bases, now }) {
     const { topic, city, words } = searchTerms(ctx);
     const parts = [];
-    if (topic.length) parts.push(`(${topic.slice(0, 8).map((t) => (/\s/.test(t) ? `"${t}"` : t)).join(' OR ')})`);
+    if (ctx.mode === 'maarif') parts.push(`(${quoted(namesFor(['en', 'tr']))})`);
+    else if (topic.length) parts.push(`(${topic.slice(0, 8).map((t) => (/\s/.test(t) ? `"${t}"` : t)).join(' OR ')})`);
     if (city.length) parts.push(city.length > 1 ? `(${city.map((c) => `"${c}"`).join(' OR ')})` : `"${city[0]}"`);
     parts.push(...words);
     const from = ctx.windows[0].from;
@@ -109,6 +117,7 @@ const hn = {
   kind: 'social',
   available: true,
   skip(ctx) {
+    if (ctx.mode === 'breaking' || ctx.mode === 'maarif') return 'Bu modda kullanılmaz';
     const relevant = ctx.world || ['technology', 'science'].includes(ctx.topic) || ctx.keyword;
     return relevant ? null : 'Yalnızca teknoloji/bilim konularında ve kelime aramalarında';
   },

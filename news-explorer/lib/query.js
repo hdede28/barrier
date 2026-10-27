@@ -89,22 +89,39 @@ function planWindows(fromStr, toStr, now = new Date(), maxWindows = MAX_WINDOWS)
 const dateOperators = (w) => `after:${w.from} before:${fmt(addDays(parseDate(w.to), 1))}`;
 
 const WORLD_MAX_WINDOWS = 3; // her yayın sürümü ayrı sorgulandığı için dünya aramasında pencere sayısı sınırlı
+const MAARIF_MAX_WINDOWS = 2;
+const MODES = ['search', 'breaking', 'maarif'];
+const BREAKING_HOURS = [1, 3, 6, 24];
 
+// mode: 'search' (arama), 'breaking' (son dakika: son N saat), 'maarif' (Türkiye Maarif Vakfı: tüm dünya, vakfın adları)
 function parseSearchParams(params, now = new Date()) {
-  const world = params.get('country') === WORLD.code;
+  const mode = MODES.includes(params.get('mode')) ? params.get('mode') : 'search';
+  const maarif = mode === 'maarif';
+  const breaking = mode === 'breaking';
+  const world = maarif || params.get('country') === WORLD.code;
   const country = world ? { ...WORLD, hl: 'en', terms: ['en'], cities: [], world: true } : findCountry(params.get('country'));
   if (!country) throw new HttpError(400, 'Geçersiz ülke.');
-  const topic = params.get('topic') || 'general';
+  const topic = maarif ? 'general' : params.get('topic') || 'general';
   if (!findTopic(topic)) throw new HttpError(400, 'Geçersiz konu.');
   const city = world ? '' : cleanText(params.get('city'));
   const keyword = cleanText(params.get('q'), 120);
-  const windows = planWindows(params.get('from'), params.get('to'), now, world ? WORLD_MAX_WINDOWS : MAX_WINDOWS);
+  let windows;
+  let hours = 0;
+  if (breaking) {
+    // Son dakika: tarih aralığı istemciden alınmaz; son N saat (bugün ve dün günlerini kapsayan tek pencere).
+    hours = BREAKING_HOURS.includes(Number(params.get('hours'))) ? Number(params.get('hours')) : 3;
+    windows = [{ from: fmt(addDays(now, -1)), to: fmt(now) }];
+  } else {
+    windows = planWindows(params.get('from'), params.get('to'), now, maarif ? MAARIF_MAX_WINDOWS : world ? WORLD_MAX_WINDOWS : MAX_WINDOWS);
+  }
   const sources = (params.get('sources') || '').split(',').map((x) => x.trim()).filter(Boolean);
   // strict (varsayılan açık): başka ülkeleri konu alan başlıklar gizlenir. Dünya aramasında anlamsız.
   const strict = !world && params.get('strict') !== '0';
   // topicStrict (varsayılan açık): seçilen konuyla ilgisiz başlıklar gizlenir.
   const topicStrict = topic !== 'general' && params.get('tstrict') !== '0';
-  const ctx = { country, topic, city, keyword, windows, sources, world, strict, topicStrict };
+  // cluster: benzer başlıklı haberler tek haberde toplanır, kaç bağımsız kaynakta çıktığı sayılır (son dakika ve Maarif'te hep).
+  const cluster = mode !== 'search' || params.get('cluster') === '1';
+  const ctx = { mode, country, topic, city, keyword, windows, sources, world, strict, topicStrict, cluster, hours, sinceMs: breaking ? now.getTime() - hours * 3600000 : 0 };
   ctx.query = world ? (keyword || '') : buildSearchQuery(ctx);
   return ctx;
 }

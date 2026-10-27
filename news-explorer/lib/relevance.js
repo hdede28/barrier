@@ -16,9 +16,12 @@ function mentions(title, folded, alias) {
 // Ülkenin adları + şehirleri. Kısa şehir adları ("Bar") sıradan sözcüklerle karışmasın diye 4 harften azsa alınmaz.
 const cityNamesOf = (c) => c.cities.flatMap((x) => x.split('/').map((n) => n.trim())).filter((n) => n.length >= 4);
 const namesOf = (c) => [...(COUNTRY_ALIASES[c.code] || []), c.nativeName, c.name, ...cityNamesOf(c)];
+const COUNTRY_PLACES = COUNTRIES.map((c) => ({ code: c.code, names: namesOf(c) }));
+// Ülke listesine eklenmiş yerler (ör. Ukrayna) "diğer yerler"den çıkarılır; böylece aynı yer iki kez sayılmaz.
+const known = new Set(COUNTRY_PLACES.flatMap((p) => p.names.map(norm)));
 const PLACES = [
-  ...COUNTRIES.map((c) => ({ code: c.code, names: namesOf(c) })),
-  ...OTHER_PLACES.map((names, i) => ({ code: `X${i}`, names })),
+  ...COUNTRY_PLACES,
+  ...OTHER_PLACES.filter((names) => !names.some((n) => known.has(norm(n)))).map((names, i) => ({ code: `X${i}`, names })),
 ];
 
 // Başlık başka bir ülkeyi/bölgeyi konu alıyor ve seçilen ülkeyi hiç anmıyorsa true.

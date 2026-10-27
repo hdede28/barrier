@@ -9,6 +9,7 @@ const { getNews, createMemoryCache } = require('./lib/news');
 const { createProviders, describe } = require('./lib/providers');
 const { loadFeeds } = require('./data/feeds');
 const { diagnose, formatText } = require('./lib/diagnose');
+const { NAMES: MAARIF_NAMES } = require('./data/maarif');
 const { translatorFromEnv, translationResponse } = require('./lib/translators');
 
 // Tanımsız ortam değişkenlerini at, varsayılanlar devreye girsin.
@@ -36,10 +37,11 @@ function createServer({
   feeds = loadFeeds(),
   translator = translatorFromEnv(),
   timing,
+  breakingTtl = process.env.BREAKING_CACHE_SECONDS === undefined ? 60 : Number(process.env.BREAKING_CACHE_SECONDS),
   providers = createProviders({ feeds, disabled: (process.env.DISABLED_SOURCES || '').split(',').map((x) => x.trim()).filter(Boolean) }),
 } = {}) {
   const cache = createMemoryCache();
-  const handleNews = (url) => getNews(url.searchParams, { newsBase, bases: cleanBases(bases), cache, providers, timing });
+  const handleNews = (url) => getNews(url.searchParams, { newsBase, bases: cleanBases(bases), cache, providers, timing, breakingTtl });
 
   function readJson(req, maxBytes = 100_000) {
     return new Promise((resolve, reject) => {
@@ -92,7 +94,7 @@ function createServer({
       const url = new URL(req.url, 'http://localhost');
       if (req.method === 'POST' && url.pathname === '/api/translate') return sendJson(res, 200, await handleTranslate(req));
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Yalnızca GET desteklenir.' });
-      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, world: WORLD, version: VERSION, sources: describe(providers), translation: translator?.provider || false });
+      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, world: WORLD, maarif: { names: MAARIF_NAMES }, version: VERSION, sources: describe(providers), translation: translator?.provider || false });
       if (url.pathname === '/api/diagnose') {
         const report = await diagnose({ providers, feeds, bases: cleanBases(bases), withFeeds: url.searchParams.get('feeds') === '1', version: VERSION });
         if (url.searchParams.get('json') === '1') return sendJson(res, 200, report);
