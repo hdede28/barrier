@@ -84,11 +84,11 @@ async function search(ctx, providers, deps) {
 }
 
 // cache: { get(key) -> body | undefined, set(key, body) } (eşzamansız olabilir)
-async function getNews(searchParams, { newsBase, bases = {}, cache, providers = createProviders(), now = new Date() }) {
+async function getNews(searchParams, { newsBase, bases = {}, cache, providers = createProviders(), now = new Date(), timing }) {
   const ctx = parseSearchParams(searchParams, now);
   const chosen = selectProviders(providers, ctx.sources);
   if (!chosen.length) throw new HttpError(400, 'Geçerli bir kaynak seçilmedi.');
-  const deps = { bases: { ...DEFAULT_BASES, ...bases, ...(newsBase && { google: newsBase }) }, now };
+  const deps = { bases: { ...DEFAULT_BASES, ...bases, ...(newsBase && { google: newsBase }) }, now, ...(timing && { timing }) };
 
   const key = `${ctx.country.code}|${ctx.topic}|${ctx.city}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}|${ctx.strict}|${ctx.topicStrict}`;
   const hit = await cache?.get(key);

@@ -12,7 +12,7 @@ const memory = createMemoryCache();
 
 // Çevirmen isolate başına bir kez kurulur (önbelleği ve günlük sayacı orada tutulur).
 let providers;
-const getProviders = (env) => (providers ||= createProviders({ feeds: loadFeeds(env) }));
+const getProviders = (env) => (providers ||= createProviders({ feeds: loadFeeds(env), disabled: (env.DISABLED_SOURCES || '').split(',').map((x) => x.trim()).filter(Boolean) }));
 const baseUrls = (env) => Object.fromEntries(Object.entries({ gdelt: env.GDELT_BASE_URL, bing: env.BING_BASE_URL, reddit: env.REDDIT_BASE_URL, hn: env.HN_BASE_URL, mastodon: env.MASTODON_INSTANCES }).filter(([, v]) => v));
 
 let translator;

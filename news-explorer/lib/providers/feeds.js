@@ -5,6 +5,21 @@ const { parseFeed } = require('../rss');
 const { mentions, namesOf } = require('../relevance');
 const { fetchText, errorText, daysAgo, inRange, norm, containsTerm, langOf } = require('./common');
 
+// Aynı sunucuya (ör. 9 YouTube akışı) aynı anda en fazla 3 istek: aksi halde 429/404 ile geri çevrilirler.
+const PER_HOST = 3;
+const hosts = new Map();
+async function withHost(url, fn) {
+  const host = new URL(url).hostname;
+  const h = hosts.get(host) || { active: 0, queue: [] };
+  hosts.set(host, h);
+  if (h.active >= PER_HOST) await new Promise((r) => h.queue.push(r));
+  h.active++;
+  try { return await fn(); } finally {
+    h.active--;
+    h.queue.shift()?.();
+  }
+}
+
 const FEED_TTL_MS = 5 * 60 * 1000;
 const FEED_LIMIT = 100;
 const CONCURRENCY = 12;
@@ -57,7 +72,7 @@ function createFeedProvider({ kind, feeds }) {
   async function load(feed) {
     const hit = cache.get(feed.url);
     if (hit && Date.now() - hit.at < FEED_TTL_MS) return hit.items;
-    const items = parseFeed(await fetchText(feed.url, { timeout: 8000 }), FEED_LIMIT);
+    const items = parseFeed(await withHost(feed.url, () => fetchText(feed.url, { timeout: 8000 })), FEED_LIMIT);
     cache.set(feed.url, { at: Date.now(), items });
     return items;
   }

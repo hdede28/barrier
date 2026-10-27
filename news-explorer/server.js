@@ -35,10 +35,11 @@ function createServer({
   bases = { gdelt: process.env.GDELT_BASE_URL, bing: process.env.BING_BASE_URL, reddit: process.env.REDDIT_BASE_URL, hn: process.env.HN_BASE_URL, mastodon: process.env.MASTODON_INSTANCES },
   feeds = loadFeeds(),
   translator = translatorFromEnv(),
-  providers = createProviders({ feeds }),
+  timing,
+  providers = createProviders({ feeds, disabled: (process.env.DISABLED_SOURCES || '').split(',').map((x) => x.trim()).filter(Boolean) }),
 } = {}) {
   const cache = createMemoryCache();
-  const handleNews = (url) => getNews(url.searchParams, { newsBase, bases: cleanBases(bases), cache, providers });
+  const handleNews = (url) => getNews(url.searchParams, { newsBase, bases: cleanBases(bases), cache, providers, timing });
 
   function readJson(req, maxBytes = 100_000) {
     return new Promise((resolve, reject) => {

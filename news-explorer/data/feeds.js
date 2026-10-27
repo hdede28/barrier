@@ -21,7 +21,7 @@ const yt = (name, id) => ({ name: `${name} (YouTube)`, url: `https://www.youtube
 
 // NOT: Bu adresleri geliştirme ortamından doğrulayamadım; bazıları değişmiş ya da kapanmış olabilir. Bozuk olan akış
 // diğerlerini etkilemez, sonuçların altında "N akıştan M tanesi alınamadı" olarak görünür. Hangilerinin bozuk olduğunu
-// görmek için /api/diagnose?feeds=1 adresini aç.
+// görmek için /api/diagnose?feeds=1 adresini aç. 403 (bot engeli) veren siteler listeden çıkarılır; engeli aşmaya çalışılmaz.
 const FEEDS = [
   // --- Türkiye
   news('BBC News Türkçe', 'https://feeds.bbci.co.uk/turkce/rss.xml', ['TR']),
@@ -43,7 +43,7 @@ const FEEDS = [
     const [topic, slug] = x.split(':');
     return news(`Hürriyet ${slug}`, `https://www.hurriyet.com.tr/rss/${slug}`, ['TR'], { topics: [topic] });
   }),
-  ...['education:egitim', 'sports:spor', 'economy:ekonomi', 'technology:teknoloji', 'health:saglik'].map((x) => {
+  ...['education:egitim', 'economy:ekonomi', 'technology:teknoloji', 'health:saglik'].map((x) => {
     const [topic, slug] = x.split(':');
     return news(`NTV ${slug}`, `https://www.ntv.com.tr/${slug}.rss`, ['TR'], { topics: [topic] });
   }),
@@ -113,29 +113,20 @@ const FEEDS = [
   news('BBC Persian', 'https://feeds.bbci.co.uk/persian/rss.xml', ['IR', 'AF'], { lang: 'fa' }),
   news('DW Persian', 'https://rss.dw.com/rdf/rss-fa-all', ['IR', 'AF'], { lang: 'fa' }),
   news('Tehran Times', 'https://www.tehrantimes.com/rss', ['IR'], { lang: 'en' }),
-  news('IranWire', 'https://iranwire.com/en/feed/', ['IR'], { lang: 'en' }),
   news('Tolo News', 'https://tolonews.com/rss.xml', ['AF'], { lang: 'en' }),
   news('Khaama Press', 'https://www.khaama.com/feed/', ['AF'], { lang: 'en' }),
-  news('Pajhwok', 'https://pajhwok.com/feed/', ['AF'], { lang: 'en' }),
   news('Tunisie Numérique', 'https://www.tunisienumerique.com/feed/', ['TN'], { lang: 'fr' }),
   news('Kapitalis', 'https://kapitalis.com/tunisie/feed/', ['TN'], { lang: 'fr' }),
   news('La Presse TN', 'https://lapresse.tn/feed/', ['TN'], { lang: 'fr' }),
   // --- Balkanlar, Yunanistan, Malezya, Gambiya
   news('Balkan Insight', 'https://balkaninsight.com/feed/', ['AL', 'XK', 'MK', 'RS', 'ME', 'GR'], { lang: 'en' }),
-  news('Greek Reporter', 'https://greekreporter.com/feed/', ['GR'], { lang: 'en' }),
-  news('Greek City Times', 'https://greekcitytimes.com/feed/', ['GR'], { lang: 'en' }),
   news('N1 Srbija', 'https://n1info.rs/feed/', ['RS'], { lang: 'sr' }),
   news('B92', 'https://www.b92.net/info/rss/vesti.xml', ['RS'], { lang: 'sr' }),
-  news('CdM', 'https://www.cdm.me/feed/', ['ME'], { lang: 'sr' }),
   news('Gazeta Express', 'https://www.gazetaexpress.com/feed/', ['XK'], { lang: 'sq' }),
   news('Telegrafi', 'https://telegrafi.com/feed/', ['XK'], { lang: 'sq' }),
   news('Balkanweb', 'https://www.balkanweb.com/feed/', ['AL'], { lang: 'sq' }),
-  news('Panorama', 'https://www.panorama.com.al/feed/', ['AL'], { lang: 'sq' }),
   news('Malay Mail', 'https://www.malaymail.com/feed/rss/malaysia', ['MY'], { lang: 'en' }),
   news('Free Malaysia Today', 'https://www.freemalaysiatoday.com/feed/', ['MY'], { lang: 'en' }),
-  news('The Star', 'https://www.thestar.com.my/rss/News/Nation', ['MY'], { lang: 'en' }),
-  news('Foroyaa', 'https://foroyaa.net/feed/', ['GM'], { lang: 'en' }),
-  news('The Standard Gambia', 'https://standard.gm/feed/', ['GM'], { lang: 'en' }),
   news('Kerr Fatou', 'https://kerrfatou.com/feed/', ['GM'], { lang: 'en' }),
   // --- Küresel (İngilizce): ülke adı başlıkta geçerse ilgili ülkede de gösterilir
   news('BBC News', 'https://feeds.bbci.co.uk/news/world/rss.xml', ['*']),
@@ -147,7 +138,6 @@ const FEEDS = [
   news('Sky News World', 'https://feeds.skynews.com/feeds/rss/world.xml', ['*']),
   news('CNN World', 'http://rss.cnn.com/rss/edition_world.rss', ['*']),
   news('NYT World', 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', ['*']),
-  news('Washington Post World', 'https://feeds.washingtonpost.com/rss/world', ['*']),
   news('NPR World', 'https://feeds.npr.org/1004/rss.xml', ['*']),
   news('UN News', 'https://news.un.org/feed/subscribe/en/news/all/rss.xml', ['*']),
   news('WHO', 'https://www.who.int/rss-feeds/news-english.xml', ['*'], { topics: ['health'] }),

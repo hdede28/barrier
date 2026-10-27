@@ -46,8 +46,11 @@ async function diagnose({ providers, feeds, bases, now = new Date(), withFeeds =
     feedResults = await pool(feeds, 12, async (f) => {
       const t = Date.now();
       try {
-        const items = parseFeed(await fetchText(f.url, { timeout: 8000 }), 100);
-        return { name: f.name, kind: f.kind, url: f.url, status: items.length ? 'tamam' : 'boş', count: items.length, took: ms(t) };
+        const text = await fetchText(f.url, { timeout: 8000 });
+        const items = parseFeed(text, 100);
+        // Boş çıkan akışta ilk karakterler (HTML hata sayfası mı, farklı biçim mi?) nedeni gösterir.
+        return { name: f.name, kind: f.kind, url: f.url, status: items.length ? 'tamam' : 'boş', count: items.length, took: ms(t),
+          ...(items.length ? {} : { sample: text.replace(/\s+/g, ' ').slice(0, 160) }) };
       } catch (err) {
         return { name: f.name, kind: f.kind, url: f.url, status: 'HATA', detail: errorText(err), took: ms(t) };
       }
@@ -70,7 +73,7 @@ function formatText(d) {
   if (d.feeds) {
     const bad = d.feeds.filter((f) => f.status !== 'tamam');
     lines.push('', `Akışlar: ${d.feeds.length - bad.length}/${d.feeds.length} çalışıyor`);
-    for (const f of bad) lines.push(`✗ ${f.name} (${f.kind}): ${f.status}${f.detail ? ` · ${f.detail}` : ''}\n    ${f.url}`);
+    for (const f of bad) lines.push(`✗ ${f.name} (${f.kind}): ${f.status}${f.detail ? ` · ${f.detail}` : ''}\n    ${f.url}${f.sample ? `\n    içerik: ${f.sample}` : ''}`);
   } else {
     lines.push('', 'Tek tek akışları da denemek için adrese ?feeds=1 ekle.');
   }

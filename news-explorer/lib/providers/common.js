@@ -9,9 +9,14 @@ async function fetchText(url, { timeout = 10000, headers = {} } = {}) {
     headers: { 'user-agent': 'Mozilla/5.0 (compatible; HaberAtlasi/1.0)', ...headers },
     signal: AbortSignal.timeout(timeout),
   });
-  if (!res.ok) throw new Error(`Kaynak ${res.status} döndürdü`);
+  if (!res.ok) {
+    // status ve Retry-After, çağıranın yeniden deneme kararı için (ör. 429)
+    throw Object.assign(new Error(`Kaynak ${res.status} döndürdü`), { status: res.status, retryAfter: Number(res.headers.get('retry-after')) || 0 });
+  }
   return res.text();
 }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const errorText = (err) => (err.name === 'TimeoutError' ? 'Zaman aşımı' : err.message);
 
@@ -43,4 +48,4 @@ const LANG_CODES = {
 };
 const langFromName = (name) => LANG_CODES[(name || '').toLowerCase()] || 'en';
 
-module.exports = { langOf, langFromName, DAY, iso, daysAgo, fetchText, errorText, inRange, norm, containsTerm };
+module.exports = { sleep, langOf, langFromName, DAY, iso, daysAgo, fetchText, errorText, inRange, norm, containsTerm };

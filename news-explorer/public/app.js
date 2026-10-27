@@ -39,7 +39,7 @@
     if (selected && !selected.some((id) => meta.sources.some((x) => x.id === id))) selected = null; // eski/geçersiz kayıt: hepsi açık
     el.sourceBoxes.replaceChildren(...meta.sources.map((src) => {
       const label = document.createElement('label');
-      const box = Object.assign(document.createElement('input'), { type: 'checkbox', value: src.id, checked: !selected || selected.includes(src.id) });
+      const box = Object.assign(document.createElement('input'), { type: 'checkbox', value: src.id, checked: selected ? selected.includes(src.id) : src.defaultOn !== false });
       label.append(box, src.label);
       if (src.kind === 'social') label.append(Object.assign(document.createElement('small'), { textContent: '(doğrulanmamış olabilir)' }));
       return label;
@@ -156,7 +156,7 @@
 
     const sources = checkedSources();
     if (!sources.length) return setStatus('En az bir haber kaynağı seç.', 'error');
-    const all = sources.length === meta.sources.length;
+    const all = sources.length === meta.sources.filter((x) => x.defaultOn !== false).length && sources.every((id) => meta.sources.find((x) => x.id === id)?.defaultOn !== false);
     const world = isWorld();
     const ui = {
       country: el.country.value, city: world ? '' : selectedCity(), topic: el.topic.value, range: el.range.value, q: el.keyword.value.trim(),

@@ -127,13 +127,17 @@ hangisinin hata verdiği görünür; biri bozulsa diğerleri çalışmaya devam 
 | Kaynak | Kapsam | Not |
 |---|---|---|
 | **Google Haberler** | Geçmiş ve güncel. Uzun aralıklar 12 döneme bölünür | Resmî API değil. Bazı ülkelerde ayrı sürümü yok |
-| **GDELT** | Son ~3 ay. Yayıncının ülkesine göre, çok dilli | Anahtarsız. Hız sınırı uygular ("5 saniyede bir istek"); bir kez bekleyip yeniden dener |
+| **GDELT** | Son ~3 ay. Yayıncının ülkesine göre, çok dilli | Anahtarsız. Hız sınırı uygular: istekler tek sıradan en az 5 sn arayla gider, aynı sorgu 20 dk önbellekten gelir, 429'da bekleyip en fazla 3 kez dener. Paylaşılan barındırma adreslerinde yine de geçici olarak sınırlanabilir |
 | **Bing Haberler** | Son 30 gün | Resmî olmayan RSS. Sorgu başına az sonuç verir |
 | **Yayıncı akışları** | Güncel (son günler) | `data/feeds.js` içinde ~140 RSS: ülke yayıncıları, konu bölümleri (BBC Education, NYT Education, Hechinger…), küresel yayıncılar |
 | **Sosyal medya hesapları** | Güncel | Resmî YouTube haber kanalları (varsayılan) + senin eklediğin Mastodon/Bluesky/YouTube hesapları |
-| **Mastodon** | Güncel (son ~30 gün) | Konu, şehir ve kelimelerden türetilen etiketler (#eğitim, #istanbul) için herkese açık RSS; mastodon.social ve journa.host |
-| **Reddit** | Son 7 gün – tüm zamanlar | Ülkenin topluluğunda (r/turkey…) arar; dünya aramasında tüm Reddit'te. Bulut sunucularından engellenebilir |
+| **Mastodon** | Güncel (son ~30 gün) | Konu, şehir ve kelimelerden türetilen etiketler (#eğitim, #istanbul) için herkese açık RSS; 5 büyük sunucu (`MASTODON_INSTANCES` ile değiştirilir) |
+| **Reddit** | Son 7 gün – tüm zamanlar | **Varsayılan kapalı.** Reddit bulut sunucularını (Render dahil) 429 ile engeller; denemek için kutuyu işaretle |
 | **Hacker News** | Geçmiş ve güncel | Resmî anahtarsız Algolia API'si; yalnızca teknoloji/bilim konularında ve kelime aramalarında |
+
+Bir kaynağı tümden kapatmak (listeden de kaldırmak) için `DISABLED_SOURCES=reddit,hn` gibi bir ortam değişkeni ver.
+Sitelerin bot engeli (403) koyduğu akışlar listeden çıkarıldı; engeli aşmaya çalışılmaz. YouTube akışları aynı anda çok istek gelince reddedebilir;
+bu yüzden aynı sunucuya en fazla 3 eşzamanlı istek yapılır.
 
 Varsayılan akış adreslerini geliştirme ortamından **doğrulayamadım**: bazıları değişmiş ya da kapanmış olabilir. Bozuk bir akış
 diğerlerini etkilemez; sonuçların altında hangilerinin alınamadığı yazar. Hangileri bozuk, görmek için

@@ -46,7 +46,7 @@ const mastodon = {
     // Konu seçiliyken etiketler konudan (en fazla 4), yoksa şehir ve kelimelerden gelir; şehir/kelime her zaman eklenir.
     const tags = [...new Set([...city, ...words, ...topic.slice(0, 4)].map(toTag).map((t) => t.toLowerCase()).filter((t) => t.length >= 3 && t.length <= 30))].slice(0, 6);
     if (!tags.length) return { items: [] };
-    const hosts = (bases.mastodon || 'https://mastodon.social,https://journa.host').split(',');
+    const hosts = (bases.mastodon || 'https://mastodon.social,https://journa.host,https://mastodon.world,https://mstdn.social,https://mastodon.online').split(',');
     const jobs = hosts.flatMap((h) => tags.map((tag) => ({ host: h.trim(), tag })));
     const from = ctx.windows[0].from;
     const to = ctx.windows.at(-1).to;
@@ -70,6 +70,7 @@ const reddit = {
   label: 'Reddit',
   kind: 'social',
   available: true,
+  defaultOn: false, // Reddit bulut sunucularını (429) sistematik olarak engeller; istenirse elle açılır
   skip(ctx) {
     const { topic, city, words } = searchTerms(ctx);
     return ctx.world && !topic.length && !city.length && !words.length ? 'Konu ya da kelime gerekli' : null;
@@ -92,7 +93,7 @@ const reddit = {
       url.searchParams.set('t', age);
       if (sub) url.searchParams.set('restrict_sr', '1');
     }
-    const xml = await cachedText(url.toString(), { timeout: 10000 });
+    const xml = await cachedText(url.toString(), { timeout: 10000, headers: { 'user-agent': 'web:haber-atlasi:1.0 (news search app)' } });
     const lang = ctx.world ? 'en' : langOf(ctx.country.hl);
     return {
       items: parseFeed(xml, 100).filter((it) => inRange(it.published, from, to, now))
