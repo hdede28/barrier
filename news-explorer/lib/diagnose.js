@@ -1,8 +1,8 @@
 'use strict';
 
 const { parseSearchParams } = require('./query');
-const { selectProviders, DEFAULT_BASES } = require('./providers');
-const { parseFeed } = require('./rss');
+const { DEFAULT_BASES } = require('./providers');
+const { parseFeed, describeFeed } = require('./rss');
 const { fetchText, errorText } = require('./providers/common');
 
 const TTL_MS = 60 * 1000;
@@ -29,7 +29,8 @@ async function diagnose({ providers, feeds, bases, now = new Date(), withFeeds =
   const ctx = parseSearchParams(new URLSearchParams({ country: 'TR', topic: 'education', from: day(6), to: day(0) }), now);
   const deps = { bases: { ...DEFAULT_BASES, ...bases }, now };
 
-  const sources = await Promise.all(selectProviders(providers, []).map(async (p) => {
+  // Varsayılan kapalı kaynaklar (GDELT, Reddit) da denenir: rapor hepsinin durumunu göstermeli.
+  const sources = await Promise.all(providers.filter((p) => p.available).map(async (p) => {
     const t = Date.now();
     const skipped = p.skip(ctx, deps);
     if (skipped) return { id: p.id, label: p.label, status: 'atlandı', detail: skipped, took: ms(t) };
@@ -47,10 +48,10 @@ async function diagnose({ providers, feeds, bases, now = new Date(), withFeeds =
       const t = Date.now();
       try {
         const text = await fetchText(f.url, { timeout: 8000 });
-        const items = parseFeed(text, 100);
+        const items = parseFeed(text, 100, f.url);
         // Boş çıkan akışta ilk karakterler (HTML hata sayfası mı, farklı biçim mi?) nedeni gösterir.
         return { name: f.name, kind: f.kind, url: f.url, status: items.length ? 'tamam' : 'boş', count: items.length, took: ms(t),
-          ...(items.length ? {} : { sample: text.replace(/\s+/g, ' ').slice(0, 160) }) };
+          ...(items.length ? {} : { sample: text.replace(/\s+/g, ' ').slice(0, 160), ...(() => { const d = describeFeed(text); return d.count ? { rawItems: d.count, firstItem: d.first } : {}; })() }) };
       } catch (err) {
         return { name: f.name, kind: f.kind, url: f.url, status: 'HATA', detail: errorText(err), took: ms(t) };
       }
@@ -73,7 +74,7 @@ function formatText(d) {
   if (d.feeds) {
     const bad = d.feeds.filter((f) => f.status !== 'tamam');
     lines.push('', `Akışlar: ${d.feeds.length - bad.length}/${d.feeds.length} çalışıyor`);
-    for (const f of bad) lines.push(`✗ ${f.name} (${f.kind}): ${f.status}${f.detail ? ` · ${f.detail}` : ''}\n    ${f.url}${f.sample ? `\n    içerik: ${f.sample}` : ''}`);
+    for (const f of bad) lines.push(`✗ ${f.name} (${f.kind}): ${f.status}${f.detail ? ` · ${f.detail}` : ''}\n    ${f.url}${f.rawItems ? `\n    ${f.rawItems} öğe var ama ayrıştırılamadı. İlk öğe: ${f.firstItem}` : f.sample ? `\n    içerik: ${f.sample}` : ''}`);
   } else {
     lines.push('', 'Tek tek akışları da denemek için adrese ?feeds=1 ekle.');
   }

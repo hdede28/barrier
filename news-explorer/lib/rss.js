@@ -35,14 +35,20 @@ const isHttpUrl = (u) => /^https?:\/\//i.test(u);
 // HTML'i düz metne çevirir (sosyal medya gönderileri ve açıklamalar için).
 const plain = (html) => decode(html.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
 
-// RSS: <link>url</link>. Atom: <link rel="alternate" href="url"/>.
-function linkOf(block) {
-  const text = tag(block, 'link');
-  if (isHttpUrl(text)) return text;
+// RSS: <link>url</link>. Atom: <link rel="alternate" href="url"/>. Yedekler: FeedBurner origLink, http(s) bir <guid>.
+// Göreli adresler akışın adresine göre tamamlanır.
+function linkOf(block, base) {
+  const absolute = (u) => {
+    if (!u) return '';
+    if (isHttpUrl(u)) return u;
+    try { return base ? new URL(u, base).toString() : ''; } catch { return ''; }
+  };
+  const text = absolute(tag(block, 'link'));
+  if (text) return text;
   const links = [...block.matchAll(/<link\s[^>]*>/gi)].map((m) => m[0]);
   const alt = links.find((l) => /rel="alternate"/i.test(l)) || links.find((l) => !/rel=/i.test(l)) || links[0];
   const href = alt && /href="([^"]*)"/i.exec(alt);
-  return href ? decode(href[1]) : '';
+  return absolute(href ? decode(href[1]) : '') || absolute(first(block, ['feedburner:origLink', 'origLink'])) || absolute(tag(block, 'guid'));
 }
 
 // Bing, gerçek adresi apiclick yönlendirmesinin url= parametresinde taşır.
@@ -59,13 +65,13 @@ function unwrapBing(link) {
 
 // RSS 2.0, RDF ve Atom çıktısını [{title, link, source, sourceUrl, published, summary}] listesine çevirir.
 // limit: yeterli haber toplanınca ayrıştırmayı bırakır (Worker CPU süresini kısa tutar).
-function parseFeed(xml, limit = Infinity) {
+function parseFeed(xml, limit = Infinity, base = '') {
   const items = [];
   const re = /<(item|entry)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/gi;
   let m;
   while (items.length < limit && (m = re.exec(xml))) {
     const block = m[2];
-    const link = unwrapBing(linkOf(block));
+    const link = unwrapBing(linkOf(block, base));
     if (!isHttpUrl(link)) continue;
     const source = plain(first(block, ['source', 'News:Source']) || tag(tag(block, 'author'), 'name'));
     const summary = plain(first(block, ['description', 'summary', 'content', 'media:description']));
@@ -87,4 +93,11 @@ function parseFeed(xml, limit = Infinity) {
   return items;
 }
 
-module.exports = { parseRss: parseFeed, parseFeed, decode, plain };
+// Tanı için: akışta kaç <item>/<entry> var ve ilki nasıl görünüyor (ayrıştırma neden 0 verdi?).
+function describeFeed(xml) {
+  const count = (xml.match(/<(item|entry)(\s[^>]*)?>/gi) || []).length;
+  const m = /<(item|entry)(\s[^>]*)?>[\s\S]{0,400}/i.exec(xml);
+  return { count, first: m ? m[0].replace(/\s+/g, ' ').slice(0, 300) : '' };
+}
+
+module.exports = { parseRss: parseFeed, parseFeed, describeFeed, decode, plain };

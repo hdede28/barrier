@@ -77,6 +77,8 @@ function placeOf(name) {
 module.exports = {
   id: 'gdelt',
   deadline: 12000,
+  // Varsayılan kapalı: canlıda yavaş (~19 sn) ve sık sık hız sınırına takılıyor; Google sürümü olmayan ülkelerde elle açılır.
+  defaultOn: false,
   label: 'GDELT',
   kind: 'news',
   skip: (ctx, { now }) => {
@@ -88,11 +90,13 @@ module.exports = {
     const from = ctx.windows[0].from < oldest ? oldest : ctx.windows[0].from;
     const to = ctx.windows.at(-1).to;
     // GDELT 3 karakterden kısa terimleri reddeder; ülke filtresi zaten sourcecountry ile yapılır.
-    // Dünya aramasında ülke filtresi yok ve terimler İngilizcedir (GDELT İngilizce sorguyu çevrilmiş metinle eşleştirir; doğrulanmadı).
-    const country = ctx.world ? { ...ctx.country, terms: ['en'] } : { ...ctx.country, approximate: false };
+    // GDELT haberleri İngilizce çevirisi üzerinden arıyor gibi görünüyor (Türkçe terimler canlıda 0 sonuç verdi): konu terimleri hep
+    // İngilizce, şehir adları aksansız ("İstanbul" -> "Istanbul"). Ülke filtresi sourcecountry ile yapılır (dünya aramasında yok).
+    const country = { ...ctx.country, approximate: false, terms: ['en'] };
+    const latin = (c) => c.split('/').map((n) => n.trim()).flatMap((n) => { const f = n.normalize('NFD').replace(/\p{M}/gu, '').replace(/ı/g, 'i').replace(/İ/g, 'I'); return f === n ? [n] : [n, f]; }).join(' / ');
     const text = ctx.mode === 'maarif'
       ? `(${quoted(COMPACT)})${ctx.keyword ? ` ${ctx.keyword}` : ''}`
-      : buildSearchQuery({ ...ctx, country, minTermLength: 3, generalPerTopic: 1 });
+      : buildSearchQuery({ ...ctx, country, city: ctx.city ? latin(ctx.city) : '', minTermLength: 3, generalPerTopic: 1 });
     const url = new URL('/api/v2/doc/doc', bases.gdelt);
     url.searchParams.set('query', ctx.world ? text : `${text} sourcecountry:${ctx.country.fips}`);
     url.searchParams.set('mode', 'artlist');

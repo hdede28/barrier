@@ -36,7 +36,7 @@ test('GDELT: FIPS ülke kodu, tarih parametreleri, kısa terim elenir, 3 ay sın
   const r = await s.get({ ...recent, sources: 'gdelt', topic: 'technology', city: 'Ankara' });
   assert.equal(r.status, 200);
   const q = s.mock.requests.find((x) => x.path === '/api/v2/doc/doc');
-  assert.match(q.q, /^"Ankara" \(teknoloji OR "yapay zeka" OR yazılım\) sourcecountry:TU$/);
+  assert.match(q.q, /^"Ankara" \(technology OR software\) sourcecountry:TU$/, 'GDELT sorgusu İngilizce terimlerle');
   assert.equal(q.end.slice(8), '235959');
   assert.equal(r.body.items[0].source, 'gdelt-site.example');
   assert.equal(r.body.items[0].kind, 'news');
@@ -119,7 +119,7 @@ test('sosyal medya akışı tanımlı değilse kaynak listesinde yer almaz', asy
 
 test('tüm kaynaklar birlikte: sayılar ve kaynak raporu; bir kaynak bozulsa da sonuç gelir', async () => {
   const s = await start({ perRequest: 5, gdeltFail: true }, FEEDS);
-  const r = await s.get({ ...recent, city: 'İstanbul' });
+  const r = await s.get({ ...recent, city: 'İstanbul', sources: 'google,gdelt,bing,feeds,social,mastodon' });
   assert.equal(r.status, 200, 'GDELT hata verse bile diğerleri çalışır');
   const byId = Object.fromEntries(r.body.sources.map((x) => [x.id, x]));
   assert.match(byId.gdelt.error, /too short/);

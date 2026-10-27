@@ -79,7 +79,7 @@ function createFeedProvider({ kind, feeds, ttl = FEED_TTL_MS }) {
     if (inflight.has(feed.url)) return inflight.get(feed.url);
     const run = (async () => {
       try {
-        const items = parseFeed(await withHost(feed.url, () => fetchText(feed.url, { timeout: 8000 })), FEED_LIMIT);
+        const items = parseFeed(await withHost(feed.url, () => fetchText(feed.url, { timeout: 8000 })), FEED_LIMIT, feed.url);
         cache.set(feed.url, { at: Date.now(), items });
         failures.delete(feed.url);
         return items;

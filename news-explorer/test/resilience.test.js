@@ -133,3 +133,35 @@ test('ara sonuçlar: hızlı kaynak bitince önce o gönderilir, yavaş olan bit
   assert.equal(body.total, 2);
   assert.equal(body.pending, 0);
 });
+
+test('GDELT varsayılan kapalı ve sorgu İngilizce, şehir aksansız', async () => {
+  const s = await start({ perRequest: 2 });
+  const meta = await (await fetch(`${s.base}/api/meta`)).json();
+  assert.equal(meta.sources.find((x) => x.id === 'gdelt').defaultOn, false);
+  const def = await s.get({ ...recent, topic: 'education' });
+  assert.ok(!def.body.sources.some((x) => x.id === 'gdelt'), 'varsayılan aramada GDELT çalışmaz');
+  assert.ok(!s.mock.requests.some((x) => x.path === '/api/v2/doc/doc'));
+  await s.get({ ...recent, topic: 'education', city: 'İstanbul', sources: 'gdelt' });
+  const q = s.mock.requests.find((x) => x.path === '/api/v2/doc/doc').q;
+  assert.match(q, /^\("İstanbul" OR "Istanbul"\) \(education OR school OR university OR teachers\) sourcecountry:TU$/);
+  s.stop();
+});
+
+test('akış ayrıştırıcı: göreli bağlantı, guid ve FeedBurner yedekleri', () => {
+  const { parseFeed, describeFeed } = require('../lib/rss');
+  const xml = '<rss><channel><item><title>Göreli bağlantı</title><link>/haber/123</link></item>'
+    + '<item><title>Guid yedeği</title><guid isPermaLink="true">https://s.example/p/9</guid></item>'
+    + '<item><title>FeedBurner</title><link></link><feedburner:origLink>https://o.example/a</feedburner:origLink></item></channel></rss>';
+  assert.deepEqual(parseFeed(xml, 100, 'https://site.example/rss').map((i) => i.link), ['https://site.example/haber/123', 'https://s.example/p/9', 'https://o.example/a']);
+  assert.deepEqual(parseFeed(xml, 100).map((i) => i.link), ['https://s.example/p/9', 'https://o.example/a'], 'taban yoksa göreli bağlantı atlanır');
+  assert.equal(describeFeed(xml).count, 3);
+  assert.equal(describeFeed('<html>captcha</html>').count, 0);
+});
+
+test('varsayılan akış listesi: YouTube yok, sosyal kaynak listede yok; her akışın adresi benzersiz', () => {
+  const { loadFeeds } = require('../data/feeds');
+  const feeds = loadFeeds({});
+  assert.ok(!feeds.some((f) => /youtube\.com/.test(f.url)));
+  assert.equal(new Set(feeds.map((f) => f.url)).size, feeds.length);
+  assert.ok(feeds.length >= 120);
+});

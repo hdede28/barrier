@@ -17,9 +17,11 @@
 // Hangi hesaplara güveneceğine sen karar ver; resmî ve doğrulanmış hesapları tercih et.
 // Küçük yardımcılar: haber akışı ve sosyal medya (YouTube) akışı.
 const news = (name, url, countries, extra = {}) => ({ name, url, kind: 'news', countries, ...extra });
+// YouTube kanal akışı yardımcısı (varsayılan listede YOK: Render'ın adresinden 404 dönüyor; EXTRA_FEEDS ile kendin ekleyebilirsin)
 const yt = (name, id) => ({ name: `${name} (YouTube)`, url: `https://www.youtube.com/feeds/videos.xml?channel_id=${id}`, kind: 'social', countries: ['*'], lang: 'en' });
 
-// NOT: Bu adresleri geliştirme ortamından doğrulayamadım; bazıları değişmiş ya da kapanmış olabilir. Bozuk olan akış
+// NOT: Adresler canlı sunucuda /api/diagnose?feeds=1 ile denenip bozuk olanlar (404, 403 bot engeli, akış olmayan sayfa) çıkarıldı;
+// bazıları zamanla değişmiş ya da kapanmış olabilir. Bozuk olan akış
 // diğerlerini etkilemez, sonuçların altında "N akıştan M tanesi alınamadı" olarak görünür. Hangilerinin bozuk olduğunu
 // görmek için /api/diagnose?feeds=1 adresini aç. 403 (bot engeli) veren siteler listeden çıkarılır; engeli aşmaya çalışılmaz.
 const FEEDS = [
@@ -35,11 +37,10 @@ const FEEDS = [
   news('TRT Haber', 'https://www.trthaber.com/sondakika.rss', ['TR']),
   news('Habertürk', 'https://www.haberturk.com/rss', ['TR']),
   news('Sözcü', 'https://www.sozcu.com.tr/feeds-son-dakika', ['TR']),
-  news('T24', 'https://t24.com.tr/rss', ['TR']),
   news('BirGün', 'https://www.birgun.net/rss/home', ['TR']),
   news('Hürriyet Daily News', 'https://www.hurriyetdailynews.com/rss', ['TR'], { lang: 'en' }),
   news('Daily Sabah', 'https://www.dailysabah.com/rssFeed/turkey', ['TR'], { lang: 'en' }),
-  ...['education:egitim', 'sports:spor', 'economy:ekonomi', 'technology:teknoloji', 'health:saglik'].map((x) => {
+  ...['education:egitim', 'sports:spor', 'economy:ekonomi', 'technology:teknoloji'].map((x) => {
     const [topic, slug] = x.split(':');
     return news(`Hürriyet ${slug}`, `https://www.hurriyet.com.tr/rss/${slug}`, ['TR'], { topics: [topic] });
   }),
@@ -59,7 +60,6 @@ const FEEDS = [
   news('Hechinger Report', 'https://hechingerreport.org/feed/', ['US'], { topics: ['education'] }),
   news('Chalkbeat', 'https://www.chalkbeat.org/arc/outboundfeeds/rss/', ['US'], { topics: ['education'] }),
   news('EdSurge', 'https://www.edsurge.com/articles_rss', ['US'], { topics: ['education'] }),
-  news('Education Week', 'https://www.edweek.org/feed', ['US'], { topics: ['education'] }),
   news('The 74', 'https://www.the74million.org/feed/', ['US'], { topics: ['education'] }),
   news('Inside Higher Ed', 'https://www.insidehighered.com/rss.xml', ['US'], { topics: ['education'] }),
   news('ESPN', 'https://www.espn.com/espn/rss/news', ['US'], { topics: ['sports'] }),
@@ -111,11 +111,8 @@ const FEEDS = [
   news('Mada Masr', 'https://www.madamasr.com/en/feed/', ['EG'], { lang: 'en' }),
   news('The National', 'https://www.thenationalnews.com/arc/outboundfeeds/rss/?outputType=xml', ['AE'], { lang: 'en' }),
   news('BBC Persian', 'https://feeds.bbci.co.uk/persian/rss.xml', ['IR', 'AF'], { lang: 'fa' }),
-  news('DW Persian', 'https://rss.dw.com/rdf/rss-fa-all', ['IR', 'AF'], { lang: 'fa' }),
   news('Tehran Times', 'https://www.tehrantimes.com/rss', ['IR'], { lang: 'en' }),
   news('Tolo News', 'https://tolonews.com/rss.xml', ['AF'], { lang: 'en' }),
-  news('Khaama Press', 'https://www.khaama.com/feed/', ['AF'], { lang: 'en' }),
-  news('Tunisie Numérique', 'https://www.tunisienumerique.com/feed/', ['TN'], { lang: 'fr' }),
   news('Kapitalis', 'https://kapitalis.com/tunisie/feed/', ['TN'], { lang: 'fr' }),
   news('La Presse TN', 'https://lapresse.tn/feed/', ['TN'], { lang: 'fr' }),
   // --- Balkanlar, Yunanistan, Malezya, Gambiya
@@ -127,20 +124,12 @@ const FEEDS = [
   news('Balkanweb', 'https://www.balkanweb.com/feed/', ['AL'], { lang: 'sq' }),
   news('Malay Mail', 'https://www.malaymail.com/feed/rss/malaysia', ['MY'], { lang: 'en' }),
   news('Free Malaysia Today', 'https://www.freemalaysiatoday.com/feed/', ['MY'], { lang: 'en' }),
-  news('Kerr Fatou', 'https://kerrfatou.com/feed/', ['GM'], { lang: 'en' }),
   // --- Yeni ülkeler (çoğu İngilizce yayın yapan yayıncılar; adresler doğrulanmadı, /api/diagnose?feeds=1 ile kontrol et)
   news('Report.az', 'https://report.az/en/rss/', ['AZ'], { lang: 'en' }),
   news('Trend', 'https://en.trend.az/feeds/index.rss', ['AZ'], { lang: 'en' }),
-  news('APA', 'https://apa.az/en/rss', ['AZ'], { lang: 'en' }),
   news('Civil.ge', 'https://civil.ge/feed', ['GE'], { lang: 'en' }),
-  news('Georgia Today', 'https://georgiatoday.ge/feed', ['GE'], { lang: 'en' }),
-  news('Armenpress', 'https://armenpress.am/eng/rss/', ['AM'], { lang: 'en' }),
   news('Iraqi News', 'https://www.iraqinews.com/feed/', ['IQ'], { lang: 'en' }),
-  news('Rudaw', 'https://www.rudaw.net/rss', ['IQ'], { lang: 'en' }),
-  news('Enab Baladi', 'https://english.enabbaladi.net/feed/', ['SY'], { lang: 'en' }),
   news('Middle East Eye', 'https://www.middleeasteye.net/rss', ['IQ', 'SY', 'LB', 'JO', 'PS', 'LY', 'KW', 'QA', 'IL'], { lang: 'en' }),
-  news('Sofia Globe', 'https://sofiaglobe.com/feed/', ['BG'], { lang: 'en' }),
-  news('Novinite', 'https://www.novinite.com/rss.php', ['BG'], { lang: 'en' }),
   news('Cyprus Mail', 'https://cyprus-mail.com/feed/', ['CY'], { lang: 'en' }),
   news('Ukrainska Pravda', 'https://www.pravda.com.ua/eng/rss/', ['UA'], { lang: 'en' }),
   news('Ukrinform', 'https://www.ukrinform.net/rss/block-lastnews', ['UA'], { lang: 'en' }),
@@ -150,26 +139,16 @@ const FEEDS = [
   news('Croatia Week', 'https://www.croatiaweek.com/feed/', ['HR'], { lang: 'en' }),
   news('Astana Times', 'https://astanatimes.com/feed/', ['KZ'], { lang: 'en' }),
   news('Akipress', 'https://akipress.com/rss/', ['KG'], { lang: 'en' }),
-  news('Naharnet', 'https://www.naharnet.com/stories/en/rss', ['LB'], { lang: 'en' }),
-  news('Jordan Times', 'https://www.jordantimes.com/rss', ['JO'], { lang: 'en' }),
-  news('Times of Israel', 'https://www.timesofisrael.com/feed/', ['IL'], { lang: 'en' }),
   news('Jerusalem Post', 'https://www.jpost.com/rss/rssfeedsheadlines.aspx', ['IL'], { lang: 'en' }),
-  news('WAFA', 'https://english.wafa.ps/rss', ['PS'], { lang: 'en' }),
-  news('Gulf Times', 'https://www.gulf-times.com/rss', ['QA'], { lang: 'en' }),
-  news('Kuwait Times', 'https://www.kuwaittimes.com/feed/', ['KW'], { lang: 'en' }),
   news('Libya Herald', 'https://libyaherald.com/feed/', ['LY'], { lang: 'en' }),
-  news('Morocco World News', 'https://www.moroccoworldnews.com/feed', ['MA'], { lang: 'en' }),
-  news('Sudan Tribune', 'https://sudantribune.com/feed/', ['SD'], { lang: 'en' }),
   news('Dawn', 'https://www.dawn.com/feeds/home', ['PK'], { lang: 'en' }),
   news('Express Tribune', 'https://tribune.com.pk/feed/home', ['PK'], { lang: 'en' }),
   news('The Daily Star BD', 'https://www.thedailystar.net/frontpage/rss.xml', ['BD'], { lang: 'en' }),
   news('Antara', 'https://en.antaranews.com/rss/news.xml', ['ID'], { lang: 'en' }),
   news('Punch', 'https://punchng.com/feed/', ['NG'], { lang: 'en' }),
-  news('Premium Times', 'https://www.premiumtimesng.com/feed', ['NG'], { lang: 'en' }),
   news('Vanguard', 'https://www.vanguardngr.com/feed/', ['NG'], { lang: 'en' }),
   news('Yonhap', 'https://en.yna.co.kr/RSS/news.xml', ['KR'], { lang: 'en' }),
   news('Korea Times', 'https://www.koreatimes.co.kr/www/rss/rss.xml', ['KR'], { lang: 'en' }),
-  news('China Daily', 'https://www.chinadaily.com.cn/rss/china_rss.xml', ['CN'], { lang: 'en' }),
   news('CGTN', 'https://www.cgtn.com/subscribe/rss/section/world.xml', ['CN'], { lang: 'en' }),
   // --- Küresel (İngilizce): ülke adı başlıkta geçerse ilgili ülkede de gösterilir
   news('BBC News', 'https://feeds.bbci.co.uk/news/world/rss.xml', ['*']),
@@ -191,16 +170,6 @@ const FEEDS = [
   news('The Verge', 'https://www.theverge.com/rss/index.xml', ['*'], { topics: ['technology'] }),
   news('Wired', 'https://www.wired.com/feed/rss', ['*'], { topics: ['technology'] }),
   news('TechCrunch', 'https://techcrunch.com/feed/', ['*'], { topics: ['technology'] }),
-  // --- Resmî YouTube haber kanalları (herkese açık, anahtarsız)
-  yt('BBC News', 'UC16niRr50-MSBwiO3YDb3RA'),
-  yt('Al Jazeera English', 'UCNye-wNBqNL5ZzHSJj3l8Bg'),
-  yt('DW News', 'UCknLrEdhRCp1aegoMqRaCZg'),
-  yt('FRANCE 24 English', 'UCQfwfsi5VrQ8yKZ-UWmAEFg'),
-  yt('Sky News', 'UCoMdktPbSTixAyNGwb-UYkQ'),
-  yt('CNN', 'UCupvZG-5ko_eiXAupbDfxWw'),
-  yt('euronews', 'UCSrZ3UV4jOidv8ppoVuvW9Q'),
-  yt('TRT World', 'UC7fWeaHhqgM4Ry-RMpM2YYw'),
-  yt('ABC News', 'UCBi2mrWuNuyYy4gbM6fU18Q'),
 ];
 
 // Reddit ülke toplulukları (ülke seçiliyken o toplulukta aranır; dünya aramasında tüm Reddit'te).

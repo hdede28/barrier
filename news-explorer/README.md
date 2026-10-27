@@ -186,10 +186,10 @@ hangisinin hata verdiği görünür; biri bozulsa diğerleri çalışmaya devam 
 | Kaynak | Kapsam | Not |
 |---|---|---|
 | **Google Haberler** | Geçmiş ve güncel. Uzun aralıklar 12 döneme bölünür | Resmî API değil. Bazı ülkelerde ayrı sürümü yok |
-| **GDELT** | Son ~3 ay. Yayıncının ülkesine göre, çok dilli | Anahtarsız. Hız sınırı uygular: istekler tek sıradan en az 5 sn arayla gider, aynı sorgu 20 dk önbellekten gelir, 429'da bekleyip en fazla 3 kez dener. Paylaşılan barındırma adreslerinde yine de geçici olarak sınırlanabilir |
+| **GDELT** | Son ~3 ay. Yayıncının ülkesine göre | **Varsayılan kapalı**: canlıda ~19 sn sürdü ve Türkçe sorguda 0 sonuç verdi. Sorgu artık hep İngilizce terimlerle (GDELT çeviri metnini arıyor gibi); elle açılır. Anahtarsız. Hız sınırı uygular: istekler tek sıradan en az 5 sn arayla gider, aynı sorgu 20 dk önbellekten gelir, 429'da bekleyip en fazla 3 kez dener. Paylaşılan barındırma adreslerinde yine de geçici olarak sınırlanabilir |
 | **Bing Haberler** | Son 30 gün | Resmî olmayan RSS. Sorgu başına az sonuç verir |
-| **Yayıncı akışları** | Güncel (son günler) | `data/feeds.js` içinde ~140 RSS: ülke yayıncıları, konu bölümleri (BBC Education, NYT Education, Hechinger…), küresel yayıncılar |
-| **Sosyal medya hesapları** | Güncel | Resmî YouTube haber kanalları (varsayılan) + senin eklediğin Mastodon/Bluesky/YouTube hesapları |
+| **Yayıncı akışları** | Güncel (son günler) | `data/feeds.js` içinde ~150 RSS: ülke yayıncıları, konu bölümleri (BBC Education, NYT Education, Hechinger…), küresel yayıncılar |
+| **Sosyal medya hesapları** | Güncel | Varsayılan liste boş (YouTube akışları Render'dan 404 verdi); senin eklediğin Mastodon/Bluesky/YouTube hesapları. Hesap eklemeyince kutu görünmez |
 | **Mastodon** | Güncel (son ~30 gün) | Konu, şehir ve kelimelerden türetilen etiketler (#eğitim, #istanbul) için herkese açık RSS; 5 büyük sunucu (`MASTODON_INSTANCES` ile değiştirilir) |
 | **Reddit** | Son 7 gün – tüm zamanlar | **Varsayılan kapalı.** Reddit bulut sunucularını (Render dahil) 429 ile engeller; denemek için kutuyu işaretle |
 | **Hacker News** | Geçmiş ve güncel | Resmî anahtarsız Algolia API'si; yalnızca teknoloji/bilim konularında ve kelime aramalarında |
