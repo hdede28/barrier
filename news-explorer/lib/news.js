@@ -3,7 +3,7 @@
 const { HttpError, parseSearchParams } = require('./query');
 const { createProviders, selectProviders, DEFAULT_BASES } = require('./providers');
 const { errorText } = require('./providers/common');
-const { foreignFocus } = require('./relevance');
+const { foreignFocus, offTopic } = require('./relevance');
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 300;
@@ -50,14 +50,16 @@ async function search(ctx, providers, deps) {
       items.push(item);
     }
   }
-  // Ülke seçiliyken başlığı başka bir ülkeyi/bölgeyi konu alan ve seçilen ülkeyi hiç anmayan haberler gizlenir.
-  let hidden = 0;
-  let visible = items;
-  if (ctx.strict) {
-    const own = ctx.city ? ctx.city.split('/').map((c) => c.trim()).filter(Boolean) : [];
-    visible = items.filter((it) => !foreignFocus(it.title, ctx.country, own));
-    hidden = items.length - visible.length;
-  }
+  // Süzgeçler: (1) ülke seçiliyken başlığı başka bir ülkeyi/bölgeyi konu alan, (2) konu seçiliyken başlığı o konuyla ilgisiz haberler.
+  const hiddenBy = { country: 0, topic: 0 };
+  const own = ctx.city ? ctx.city.split('/').map((c) => c.trim()).filter(Boolean) : [];
+  const visible = items.filter((it) => {
+    if (ctx.strict && foreignFocus(it.title, ctx.country, own)) { hiddenBy.country++; return false; }
+    // Konuya özel akıştan (ör. BBC Eğitim) gelen haber zaten konuya aittir.
+    if (ctx.topicStrict && !it.topicTrusted && offTopic(it.title, ctx.topic, it.lang || 'en')) { hiddenBy.topic++; return false; }
+    return true;
+  });
+  const hidden = items.length - visible.length;
   visible.sort((a, b) => (b.published || '').localeCompare(a.published || ''));
 
   const google = runs.find((r) => r.p.id === 'google');
@@ -71,6 +73,7 @@ async function search(ctx, providers, deps) {
     windows: ctx.windows.map((w, i) => ({ ...w, count: counts[i], error: google?.windowErrors?.[i] || null })),
     total: visible.length,
     hidden,
+    hiddenBy,
     world: ctx.world,
     items: visible,
     sources: runs.map((r) => ({
@@ -87,7 +90,7 @@ async function getNews(searchParams, { newsBase, bases = {}, cache, providers = 
   if (!chosen.length) throw new HttpError(400, 'Geçerli bir kaynak seçilmedi.');
   const deps = { bases: { ...DEFAULT_BASES, ...bases, ...(newsBase && { google: newsBase }) }, now };
 
-  const key = `${ctx.country.code}|${ctx.topic}|${ctx.city}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}|${ctx.strict}`;
+  const key = `${ctx.country.code}|${ctx.topic}|${ctx.city}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}|${ctx.strict}|${ctx.topicStrict}`;
   const hit = await cache?.get(key);
   if (hit) return { ...hit, cached: true };
 

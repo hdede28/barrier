@@ -44,6 +44,11 @@ Kota sunucunun IP adresine bağlı olabilir; ortak IP kullanan barındırma serv
   Cloudflare'de: `npx wrangler secret put ANTHROPIC_API_KEY`.
 - Tarayıcının yerleşik çeviri API'si (Chrome masaüstü) kullanılmıyor; telefonlarda çalışmadığı için.
 
+## Hangi sürüm yayında?
+
+Sayfanın en altında **Sürüm xxxxxxx** yazar (Render'da commit numarası). Yeni bir özelliği göremiyorsan bu numarayı GitHub'daki son
+commit ile karşılaştır; farklıysa Render'da **Manual Deploy → Deploy latest commit** de. `/api/diagnose` raporunun başlığında da sürüm yazar.
+
 ## Yayına alma: en kolay yol (Render, terminal gerekmez)
 
 1. [render.com](https://render.com) hesabı aç, **New → Web Service**, GitHub'ı bağla ve bu depoyu seç.
@@ -79,7 +84,7 @@ Notlar:
 ## Dünya geneli arama
 
 Ülke listesinin başındaki **🌍 Tüm dünya** seçeneği tek bir ülkeye bağlı kalmadan arar. Bir **konu** seç (ör. Eğitim) ya da
-**anahtar kelime / isim** yaz; ikisi de boşsa uygulama uyarır.
+**anahtar kelime / isim** yaz. İkisi de boşsa 10 ülkenin genel haberleri gelir.
 
 - **Google Haberler:** 10 yayın sürümü (ABD, İngiltere, Türkiye, Almanya, Fransa, İspanya, Brezilya, Rusya, Suudi Arabistan, Japonya)
   ayrı ayrı sorgulanır; konu terimleri her sürümün kendi dilindedir. Çok uzun aralıklar bu modda en fazla 3 döneme bölünür.
@@ -89,7 +94,19 @@ Notlar:
 - **İsim aratırken** yazımı olduğu gibi aranır; farklı yazımları `OR` ile ekle: `Erdoğan OR Erdogan`. Başka alfabelerdeki yazımı
   (ör. `Путин`) da ekleyebilirsin.
 - Sonuçlar ülkeye göre süzülebilir (rozet ve liste). Çeviri her haberi kendi dilinden Türkçeye çevirir.
-- Cloudflare ücretsiz planında bir istekte en fazla 50 dış çağrı yapılabilir; dünya araması bu sınıra yaklaşır (Render'da sorun yok).
+- **Render önerilir.** Cloudflare Workers ücretsiz planında bir istekte en fazla 50 dış çağrı yapılabilir; yüzlerce akış ve dünya araması bu sınırı aşar (ücretli planda 1000).
+
+## Konu süzgeci
+
+Arama kaynakları kelimeleri haberin gövdesinde de arar; "eğitim" kelimesi spor ya da teknoloji haberlerinde de geçer
+(antrenman eğitimi, yapay zeka eğitimi). Bu yüzden konu seçiliyken her başlık 9 dilde (`data/lexicon.js`, 1.600+ terim) tüm
+konularla puanlanır ve **seçilen konuya, başka herhangi bir konudan daha az uyan başlık gizlenir**.
+Örnek: "Üniversite takımı şampiyon oldu" Eğitim aramasında gizlenir, Spor aramasında kalır.
+
+- Kutuyu kapatırsan (**Seçilen konuyla ilgisiz başlıkları gizle**) hepsi görünür; kaç haberin gizlendiği ve **Göster** düğmesi çıkar.
+- Konuya özel akıştan (ör. BBC Education) gelen haber zaten o konuya aittir, süzülmez.
+- Sözlüğü zayıf dillerde (Korece, Hollandaca…) karar verilemez, başlık elenmez.
+- Süzgeç başlığa bakar; başlığında hiçbir konu sözcüğü geçmeyen alakalı bir haber de elenebilir. Sözlüğü `data/lexicon.js`'te genişletebilirsin.
 
 ## Ülke seçiliyken yalnızca o ülkeyle ilgili haberler
 
@@ -110,10 +127,17 @@ hangisinin hata verdiği görünür; biri bozulsa diğerleri çalışmaya devam 
 | Kaynak | Kapsam | Not |
 |---|---|---|
 | **Google Haberler** | Geçmiş ve güncel. Uzun aralıklar 12 döneme bölünür | Resmî API değil. Bazı ülkelerde ayrı sürümü yok |
-| **GDELT** | Son ~3 ay. Yayıncının ülkesine göre, çok dilli | Anahtarsız. Google sürümü olmayan ülkelerde en yararlı kaynak. Aşırı kullanımda hız sınırı uygular |
+| **GDELT** | Son ~3 ay. Yayıncının ülkesine göre, çok dilli | Anahtarsız. Hız sınırı uygular ("5 saniyede bir istek"); bir kez bekleyip yeniden dener |
 | **Bing Haberler** | Son 30 gün | Resmî olmayan RSS. Sorgu başına az sonuç verir |
-| **Yayıncı akışları** | Güncel (son günler) | `data/feeds.js` içindeki RSS adresleri. Başlıkta şehir/konu/ülke adı geçenler alınır |
-| **Sosyal medya hesapları** | Güncel | Yalnızca **senin tanımladığın** herkese açık hesaplar. Varsayılan liste boştur |
+| **Yayıncı akışları** | Güncel (son günler) | `data/feeds.js` içinde ~140 RSS: ülke yayıncıları, konu bölümleri (BBC Education, NYT Education, Hechinger…), küresel yayıncılar |
+| **Sosyal medya hesapları** | Güncel | Resmî YouTube haber kanalları (varsayılan) + senin eklediğin Mastodon/Bluesky/YouTube hesapları |
+| **Mastodon** | Güncel (son ~30 gün) | Konu, şehir ve kelimelerden türetilen etiketler (#eğitim, #istanbul) için herkese açık RSS; mastodon.social ve journa.host |
+| **Reddit** | Son 7 gün – tüm zamanlar | Ülkenin topluluğunda (r/turkey…) arar; dünya aramasında tüm Reddit'te. Bulut sunucularından engellenebilir |
+| **Hacker News** | Geçmiş ve güncel | Resmî anahtarsız Algolia API'si; yalnızca teknoloji/bilim konularında ve kelime aramalarında |
+
+Varsayılan akış adreslerini geliştirme ortamından **doğrulayamadım**: bazıları değişmiş ya da kapanmış olabilir. Bozuk bir akış
+diğerlerini etkilemez; sonuçların altında hangilerinin alınamadığı yazar. Hangileri bozuk, görmek için
+**`/api/diagnose?feeds=1`** adresini aç (her kaynağı ve her akışı ayrı ayrı dener).
 
 Sosyal medya doğrulanmamış içeriktir; bu yüzden ayrı etiketle gösterilir ve ayrı süzülebilir. Resmî ve doğrulanmış hesapları seç.
 Facebook, Instagram, TikTok ve X için ücretsiz, herkese açık bir arama/akış yolu yoktur; bu yüzden desteklenmez.

@@ -8,10 +8,14 @@ const { HttpError } = require('./lib/query');
 const { getNews, createMemoryCache } = require('./lib/news');
 const { createProviders, describe } = require('./lib/providers');
 const { loadFeeds } = require('./data/feeds');
+const { diagnose, formatText } = require('./lib/diagnose');
 const { translatorFromEnv, translationResponse } = require('./lib/translators');
 
 // Tanımsız ortam değişkenlerini at, varsayılanlar devreye girsin.
 const cleanBases = (b) => Object.fromEntries(Object.entries(b).filter(([, v]) => v));
+
+// Hangi sürümün yayında olduğunu görmek için (Render commit numarasını verir).
+const VERSION = (process.env.APP_VERSION || process.env.RENDER_GIT_COMMIT || require('./package.json').version).slice(0, 7);
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
@@ -25,7 +29,7 @@ const MIME = {
 
 function createServer({
   newsBase = process.env.GOOGLE_NEWS_BASE,
-  bases = { gdelt: process.env.GDELT_BASE_URL, bing: process.env.BING_BASE_URL },
+  bases = { gdelt: process.env.GDELT_BASE_URL, bing: process.env.BING_BASE_URL, reddit: process.env.REDDIT_BASE_URL, hn: process.env.HN_BASE_URL, mastodon: process.env.MASTODON_INSTANCES },
   feeds = loadFeeds(),
   translator = translatorFromEnv(),
   providers = createProviders({ feeds }),
@@ -84,7 +88,13 @@ function createServer({
       const url = new URL(req.url, 'http://localhost');
       if (req.method === 'POST' && url.pathname === '/api/translate') return sendJson(res, 200, await handleTranslate(req));
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Yalnızca GET desteklenir.' });
-      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, world: WORLD, sources: describe(providers), translation: translator?.provider || false });
+      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, world: WORLD, version: VERSION, sources: describe(providers), translation: translator?.provider || false });
+      if (url.pathname === '/api/diagnose') {
+        const report = await diagnose({ providers, feeds, bases: cleanBases(bases), withFeeds: url.searchParams.get('feeds') === '1', version: VERSION });
+        if (url.searchParams.get('json') === '1') return sendJson(res, 200, report);
+        res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+        return res.end(formatText(report));
+      }
       if (url.pathname === '/api/news') return sendJson(res, 200, await handleNews(url));
       return serveStatic(url, res);
     } catch (err) {

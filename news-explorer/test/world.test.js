@@ -10,11 +10,11 @@ const { buildSearchQuery, parseSearchParams } = require('../lib/query');
 const { createMockGoogleNews } = require('./mock-google-news');
 
 const day = (offset) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
-const qs = (o) => new URLSearchParams(o).toString();
+const qs = (o) => new URLSearchParams({ tstrict: '0', ...o }).toString();
 
 async function start(mockOpts, feeds = []) {
   const mock = await createMockGoogleNews(mockOpts);
-  const app = createServer({ newsBase: mock.base, bases: { gdelt: mock.base, bing: mock.base }, feeds, translator: null });
+  const app = createServer({ newsBase: mock.base, bases: { gdelt: mock.base, bing: mock.base, reddit: mock.base, hn: mock.base, mastodon: mock.base }, feeds, translator: null });
   await new Promise((r) => app.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${app.address().port}`;
   const get = async (params) => {
@@ -49,7 +49,7 @@ test('strict süzgeç: Afganistan haberi ABD aramasında gizlenir, strict=0 ile 
   const mk = (title, link) => ({ title, link, source: 'x', published: new Date().toISOString() });
   const provider = { id: 'a', label: 'A', kind: 'news', available: true, skip: () => null,
     fetch: async () => ({ items: [mk('Taliban bans women from universities in Afghanistan', 'https://a/1'), mk('School budget vote in Ohio', 'https://a/2'), mk('US envoy visits Kabul', 'https://a/3')] }) };
-  const run = (extra) => getNews(new URLSearchParams({ country: 'US', topic: 'education', from: day(-3), to: day(0), ...extra }), { providers: [provider] });
+  const run = (extra) => getNews(new URLSearchParams({ country: 'US', topic: 'education', from: day(-3), to: day(0), tstrict: '0', ...extra }), { providers: [provider] });
   const strict = await run({});
   assert.deepEqual(strict.items.map((i) => i.link).sort(), ['https://a/2', 'https://a/3']);
   assert.equal(strict.hidden, 1);
@@ -58,8 +58,9 @@ test('strict süzgeç: Afganistan haberi ABD aramasında gizlenir, strict=0 ile 
   assert.equal(loose.hidden, 0);
 });
 
-test('dünya araması: konu ya da kelime şart; önbellek konuya göre ayrılır', async () => {
-  assert.throws(() => parseSearchParams(new URLSearchParams({ country: 'ALL', from: day(-3), to: day(0) })), /konu seç/);
+test('dünya araması: konu/kelime şart değil; önbellek konuya göre ayrılır', async () => {
+  const free = parseSearchParams(new URLSearchParams({ country: 'ALL', from: day(-3), to: day(0) }));
+  assert.equal(free.world, true, 'konu ve kelime olmadan da dünya araması yapılabilir');
   const ctx = parseSearchParams(new URLSearchParams({ country: 'ALL', topic: 'education', from: '2022-01-01', to: day(0) }));
   assert.equal(ctx.world, true);
   assert.equal(ctx.windows.length, 3, 'dünya aramasında en fazla 3 pencere');
@@ -67,7 +68,7 @@ test('dünya araması: konu ya da kelime şart; önbellek konuya göre ayrılır
   let calls = 0;
   const provider = { id: 'a', label: 'A', kind: 'news', available: true, skip: () => null, fetch: async () => { calls++; return { items: [] }; } };
   const cache = createMemoryCache();
-  const base = { country: 'ALL', q: 'Putin', from: day(-3), to: day(0) };
+  const base = { country: 'ALL', q: 'Putin', from: day(-3), to: day(0), tstrict: '0' };
   await getNews(new URLSearchParams({ ...base, topic: 'politics' }), { providers: [provider], cache });
   await getNews(new URLSearchParams({ ...base, topic: 'sports' }), { providers: [provider], cache });
   assert.equal(calls, 2, 'aynı kelime ama farklı konu aynı önbellek kaydını paylaşmamalı');

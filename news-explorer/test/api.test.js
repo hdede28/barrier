@@ -13,7 +13,7 @@ async function start(mockOpts) {
   return { mock, base, stop: () => { app.close(); mock.close(); } };
 }
 
-const qs = (o) => new URLSearchParams({ sources: 'google', ...o }).toString();
+const qs = (o) => new URLSearchParams({ sources: 'google', tstrict: '0', ...o }).toString();
 
 test('GET /api/meta ülke ve konu listesini verir', async () => {
   const { base, stop } = await start();

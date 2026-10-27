@@ -43,16 +43,22 @@ module.exports = {
     url.searchParams.set('startdatetime', `${from.replaceAll('-', '')}000000`);
     url.searchParams.set('enddatetime', `${to.replaceAll('-', '')}235959`);
 
+    // GDELT "5 saniyede bir istek" sınırı koyar ve aşılınca düz metin uyarı döner: bir kez bekleyip yeniden dener.
     let body;
-    try {
-      body = (await fetchText(url, { timeout: 20000 })).trim();
-    } catch (err) {
-      throw new Error(errorText(err));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        body = (await fetchText(url, { timeout: 20000 })).trim();
+      } catch (err) {
+        throw new Error(errorText(err));
+      }
+      if (!/limit requests/i.test(body) || attempt) break;
+      await new Promise((r) => setTimeout(r, 5500));
     }
-    if (!body) return { items: [] };
+    if (!body) return { items: [], debug: { url: url.toString() } };
     let json;
-    try { json = JSON.parse(body); } catch { throw new Error(body.slice(0, 120)); } // GDELT hataları düz metindir
+    try { json = JSON.parse(body); } catch { throw Object.assign(new Error(body.slice(0, 160)), { debug: { url: url.toString() } }); } // GDELT hataları düz metindir
     return {
+      debug: { url: url.toString() },
       items: (json.articles || []).slice(0, LIMIT).filter((a) => /^https?:\/\//i.test(a.url) && a.title).map((a) => ({
         title: a.title.trim(),
         link: a.url,

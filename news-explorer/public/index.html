@@ -53,6 +53,10 @@
           <input id="strict" type="checkbox" checked>
           <span>Başka ülkeleri konu alan başlıkları gizle <small>(ör. ABD seçiliyken Afganistan haberleri)</small></span>
         </label>
+        <label class="wide check" id="topicStrictWrap" hidden>
+          <input id="tstrict" type="checkbox" checked>
+          <span>Seçilen konuyla ilgisiz başlıkları gizle <small>(ör. Eğitim seçiliyken spor ve teknoloji haberleri)</small></span>
+        </label>
         <fieldset class="wide sources">
           <legend>Kaynaklar</legend>
           <div id="sourceBoxes" class="boxes"></div>
@@ -60,7 +64,7 @@
         </fieldset>
       </div>
       <p id="worldNote" class="note info" role="note" hidden>
-        Dünya geneli arama: bir <b>konu</b> seç ya da <b>anahtar kelime / isim</b> yaz. Arama, 10 ülkenin yayın sürümünde kendi dillerinde yapılır.
+        Dünya geneli arama: bir <b>konu</b> seç ve/veya <b>anahtar kelime / isim</b> yaz; ikisi de boşsa 10 ülkenin genel haberleri gelir. Arama, 10 ülkenin yayın sürümünde kendi dillerinde yapılır.
         İsim yazarken farklı yazımları <code>OR</code> ile ekle: <code>Erdoğan OR Erdogan</code>. Haberleri ülkeye göre süzebilir ve Türkçeye çevirebilirsin.
       </p>
       <p id="countryNote" class="note" role="note" hidden>
@@ -76,6 +80,7 @@
       <div id="status" class="status" hidden></div>
       <p id="hiddenNote" class="note info" hidden><span id="hiddenText"></span> <button type="button" id="showHidden" class="linkbtn">Göster</button></p>
       <ul id="srcSummary" class="src-summary" hidden></ul>
+      <ul id="srcNotes" class="src-notes" hidden></ul>
       <div id="timeline" class="timeline" hidden></div>
       <div id="toolbar" class="toolbar" hidden>
         <div id="lang" class="seg" role="group" aria-label="Başlık dili" hidden>
@@ -101,6 +106,7 @@
 
   <footer class="wrap foot">
     Haberler Google Haberler, GDELT, Bing Haberler ve tanımlı RSS / sosyal medya akışlarından toplanır; başlıklar ve bağlantılar ilgili yayıncılara aittir. Sosyal medya gönderileri doğrulanmamış olabilir.
+    <span id="version"></span>
   </footer>
   <script src="app.js"></script>
 </body>

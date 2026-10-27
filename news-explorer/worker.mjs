@@ -6,13 +6,14 @@ import { getNews, createMemoryCache, CACHE_TTL_MS } from './lib/news.js';
 import { translatorFromEnv, translationResponse } from './lib/translators.js';
 import { createProviders, describe } from './lib/providers/index.js';
 import { loadFeeds } from './data/feeds.js';
+import { diagnose, formatText } from './lib/diagnose.js';
 
 const memory = createMemoryCache();
 
 // Çevirmen isolate başına bir kez kurulur (önbelleği ve günlük sayacı orada tutulur).
 let providers;
 const getProviders = (env) => (providers ||= createProviders({ feeds: loadFeeds(env) }));
-const baseUrls = (env) => Object.fromEntries(Object.entries({ gdelt: env.GDELT_BASE_URL, bing: env.BING_BASE_URL }).filter(([, v]) => v));
+const baseUrls = (env) => Object.fromEntries(Object.entries({ gdelt: env.GDELT_BASE_URL, bing: env.BING_BASE_URL, reddit: env.REDDIT_BASE_URL, hn: env.HN_BASE_URL, mastodon: env.MASTODON_INSTANCES }).filter(([, v]) => v));
 
 let translator;
 const getTranslator = (env) => (translator === undefined ? (translator = translatorFromEnv(env)) : translator);
@@ -51,7 +52,12 @@ export default {
       }
       if (request.method !== 'GET') return json({ error: 'Yalnızca GET desteklenir.' }, 405);
       if (url.pathname === '/api/meta') {
-        return json({ countries: COUNTRIES, topics: TOPICS, world: WORLD, sources: describe(getProviders(env)), translation: getTranslator(env)?.provider || false }, 200, { 'cache-control': 'public, max-age=300' });
+        return json({ countries: COUNTRIES, topics: TOPICS, world: WORLD, version: env.APP_VERSION || 'worker', sources: describe(getProviders(env)), translation: getTranslator(env)?.provider || false }, 200, { 'cache-control': 'public, max-age=300' });
+      }
+      if (url.pathname === '/api/diagnose') {
+        const report = await diagnose({ providers: getProviders(env), feeds: loadFeeds(env), bases: baseUrls(env), withFeeds: url.searchParams.get('feeds') === '1', version: env.APP_VERSION || 'worker' });
+        if (url.searchParams.get('json') === '1') return json(report);
+        return new Response(formatText(report), { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
       }
       if (url.pathname === '/api/news') {
         const body = await getNews(url.searchParams, {

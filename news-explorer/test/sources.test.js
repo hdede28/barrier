@@ -9,12 +9,12 @@ const { loadFeeds } = require('../data/feeds');
 const { createMockGoogleNews } = require('./mock-google-news');
 
 const day = (offset) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
-const qs = (o) => new URLSearchParams(o).toString();
+const qs = (o) => new URLSearchParams({ tstrict: '0', ...o }).toString();
 
 async function start(mockOpts, feedsFor) {
   const mock = await createMockGoogleNews(mockOpts);
   const feeds = feedsFor ? feedsFor(mock.base) : [];
-  const app = createServer({ newsBase: mock.base, bases: { gdelt: mock.base, bing: mock.base }, feeds, translator: null });
+  const app = createServer({ newsBase: mock.base, bases: { gdelt: mock.base, bing: mock.base, reddit: mock.base, hn: mock.base, mastodon: mock.base }, feeds, translator: null });
   await new Promise((r) => app.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${app.address().port}`;
   const get = async (params) => {
@@ -104,7 +104,7 @@ test('sosyal medya: Atom akışı, başlıksız gönderi metinden başlık alır
   assert.equal(r.body.items[0].source, 'Resmî Hesap');
   assert.equal(r.body.items[0].link, 'https://social.example/post/0');
   const meta = await (await fetch(`${s.base}/api/meta`)).json();
-  assert.deepEqual(meta.sources.map((x) => x.id), ['google', 'gdelt', 'bing', 'feeds', 'social']);
+  assert.deepEqual(meta.sources.map((x) => x.id), ['google', 'gdelt', 'bing', 'feeds', 'social', 'mastodon', 'reddit', 'hn']);
   s.stop();
 });
 
@@ -134,7 +134,7 @@ test('tüm kaynaklar birlikte: sayılar ve kaynak raporu; bir kaynak bozulsa da 
 
 test('hiçbir kaynak çalışmazsa 502; sources parametresi seçimi sınırlar; geçersiz kaynak 400', async () => {
   const s = await start({ fail: true, gdeltFail: true, bingFail: true });
-  const bad = await s.get({ ...recent });
+  const bad = await s.get({ ...recent, sources: 'google,gdelt,bing' });
   assert.equal(bad.status, 502);
   assert.match(bad.body.error, /ulaşılamadı/);
   const only = await s.get({ ...recent, sources: 'feeds,zzz' });

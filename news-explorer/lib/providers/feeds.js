@@ -7,7 +7,8 @@ const { fetchText, errorText, daysAgo, inRange, norm, containsTerm, langOf } = r
 
 const FEED_TTL_MS = 5 * 60 * 1000;
 const FEED_LIMIT = 100;
-const CONCURRENCY = 6;
+const CONCURRENCY = 12;
+const DEADLINE_MS = 14000; // toplam süre: yavaş akışlar sonuçları geciktirmesin
 const MAX_AGE_DAYS = 60; // RSS akışları yalnızca son birkaç günü/haftayı taşır
 
 // "Tunis / تونس" -> ['Tunis', 'تونس']
@@ -39,8 +40,11 @@ function createMatcher(ctx) {
       // Ülkeye özel olmayan ('*') akışlarda ülke adı BAŞLIKTA geçmeli (özet metnindeki anma ilgisizdir: "Washington" vb.).
       if (feed.countries.includes('*') && !cityHit && !aliases.some((a) => mentions(it.title, norm(it.title), a))) return false;
     }
-    const terms = termsOf(feed);
-    if (terms.length && !terms.some((t) => containsTerm(text, t))) return false;
+    if (ctx.topic !== 'general' && !feed.topics?.includes(ctx.topic)) {
+      const terms = termsOf(feed);
+      // Sözlüğü olmayan dildeki akışta konuya göre karar verilemez: konu seçiliyken atlanır.
+      if (!terms.length || !terms.some((t) => containsTerm(text, t))) return false;
+    }
     return words.every((w) => text.includes(norm(w)));
   };
 }
@@ -68,7 +72,11 @@ function createFeedProvider({ kind, feeds }) {
       return ctx.windows.at(-1).to < daysAgo(now, MAX_AGE_DAYS) ? 'Akışlar yalnızca güncel haberleri kapsar' : null;
     },
     async fetch(ctx, { now }) {
-      const applicable = ctx.world ? mine : mine.filter((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code));
+      const forCountry = ctx.world ? mine : mine.filter((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code));
+      // Konuya özel akışlar yalnızca o konuda (ya da "Genel"de) kullanılır.
+      const applicable = forCountry.filter((f) => !f.topics || ctx.topic === 'general' || f.topics.includes(ctx.topic));
+      if (!applicable.length) return { items: [], note: 'Bu konu için tanımlı akış yok' };
+      const startedAt = Date.now();
       const from = ctx.windows[0].from;
       const to = ctx.windows.at(-1).to;
       const match = createMatcher(ctx);
@@ -78,12 +86,14 @@ function createFeedProvider({ kind, feeds }) {
         while (next < applicable.length) {
           const i = next++;
           const feed = applicable[i];
+          if (Date.now() - startedAt > DEADLINE_MS) { results[i] = { items: [], error: 'zaman sınırı' }; continue; }
           try {
             const items = (await load(feed))
               .filter((it) => inRange(it.published, from, to, now) && match(it, feed))
               .map(({ summary, ...it }) => ({
                 ...it, source: feed.name, sourceUrl: new URL(feed.url).origin,
                 lang: feedLang(feed), country: feedCountry(feed)?.code || '', place: feedCountry(feed)?.name || '',
+                ...(ctx.topic !== 'general' && feed.topics?.includes(ctx.topic) && { topicTrusted: true }),
               }));
             results[i] = { items };
           } catch (err) {
@@ -92,11 +102,11 @@ function createFeedProvider({ kind, feeds }) {
         }
       };
       await Promise.all(Array.from({ length: Math.min(CONCURRENCY, applicable.length) }, worker));
-      const failed = results.filter((r) => r.error);
-      if (failed.length === results.length) throw new Error(failed[0].error);
+      const failed = results.map((r, i) => (r.error ? applicable[i].name : null)).filter(Boolean);
+      if (failed.length === results.length) throw new Error(`hiçbir akış alınamadı (${results[0].error})`);
       return {
         items: results.flatMap((r) => r.items),
-        note: failed.length ? `${applicable.length} akıştan ${failed.length} tanesi alınamadı` : null,
+        note: failed.length ? `${applicable.length} akıştan ${failed.length} tanesi alınamadı: ${failed.slice(0, 6).join(', ')}${failed.length > 6 ? '…' : ''}` : null,
       };
     },
   };

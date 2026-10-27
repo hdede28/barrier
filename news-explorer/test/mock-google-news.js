@@ -48,6 +48,30 @@ function createMockGoogleNews({ perRequest = 40, fail = false, gdeltFail = false
       return res.end(rss(items));
     }
 
+    if (/^\/tags\/[^/]+\.rss$/.test(url.pathname)) {
+      log(url, {});
+      const tag = decodeURIComponent(url.pathname.split('/')[2].replace('.rss', ''));
+      const post = (h, text, n) => `<item><title></title><link>https://masto.example/@u/${tag}${n}</link><pubDate>${hoursAgo(h).toUTCString()}</pubDate><description>${esc(`<p>${text} #${tag}</p>`)}</description></item>`;
+      res.writeHead(200, { 'content-type': 'application/rss+xml' });
+      return res.end(rss([post(1, `Okullarda yeni dönem ${tag}`, 0), post(2, `Yapay zeka ile ilgili ${tag} paylaşımı`, 1)]));
+    }
+
+    if (url.pathname === '/search.rss' || /^\/r\/[^/]+\/(search|new)\.rss$/.test(url.pathname)) {
+      log(url, { sort: url.searchParams.get('sort'), t: url.searchParams.get('t'), restrict: url.searchParams.get('restrict_sr') });
+      const entry = (h, title, n) => `<entry><title>${esc(title)}</title><link href="https://reddit.example/comments/${n}"/><updated>${hoursAgo(h).toISOString()}</updated><author><name>/u/biri</name></author></entry>`;
+      res.writeHead(200, { 'content-type': 'application/atom+xml' });
+      return res.end(`<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><title>r</title>${entry(1, 'Okul servisleri hakkında tartışma', 0)}${entry(2, 'Maç sonrası yorumlar', 1)}</feed>`);
+    }
+
+    if (url.pathname === '/api/v1/search_by_date') {
+      log(url, { filters: url.searchParams.get('numericFilters') });
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ hits: [
+        { title: 'New AI chip announced', url: 'https://hn-target.example/1', objectID: '1', created_at: hoursAgo(2).toISOString() },
+        { title: 'Ask HN: school software', url: null, objectID: '2', created_at: hoursAgo(3).toISOString() },
+      ] }));
+    }
+
     if (url.pathname === '/feeds/news.xml') {
       const it = (h, title, n) => `<item><title>${esc(title)}</title><link>https://yayinci.example/${n}</link><pubDate>${hoursAgo(h).toUTCString()}</pubDate><description>${esc(`<p>${title} ayrıntılar</p>`)}</description></item>`;
       res.writeHead(200, { 'content-type': 'application/rss+xml' });

@@ -86,3 +86,8 @@ label.check small { color: var(--muted); font-weight: 400; }
 .note code { font-size: .9em; }
 .linkbtn { background: none; color: var(--accent); padding: 0 4px; font-weight: 700; text-decoration: underline; }
 #hiddenNote { margin-top: 10px; }
+
+.src-notes { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.src-notes li { font-size: .8rem; color: var(--warn); background: var(--warn-bg); padding: 6px 10px; border-radius: 8px; overflow-wrap: anywhere; }
+.src-notes li.info { color: var(--muted); background: var(--panel); border: 1px solid var(--line); }
+#version { display: block; margin-top: 4px; opacity: .8; }

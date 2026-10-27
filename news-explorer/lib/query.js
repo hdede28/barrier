@@ -98,14 +98,13 @@ function parseSearchParams(params, now = new Date()) {
   if (!findTopic(topic)) throw new HttpError(400, 'Geçersiz konu.');
   const city = world ? '' : cleanText(params.get('city'));
   const keyword = cleanText(params.get('q'), 120);
-  if (world && topic === 'general' && !keyword) {
-    throw new HttpError(400, 'Dünya geneli aramada bir konu seç ya da anahtar kelime / isim yaz.');
-  }
   const windows = planWindows(params.get('from'), params.get('to'), now, world ? WORLD_MAX_WINDOWS : MAX_WINDOWS);
   const sources = (params.get('sources') || '').split(',').map((x) => x.trim()).filter(Boolean);
   // strict (varsayılan açık): başka ülkeleri konu alan başlıklar gizlenir. Dünya aramasında anlamsız.
   const strict = !world && params.get('strict') !== '0';
-  const ctx = { country, topic, city, keyword, windows, sources, world, strict };
+  // topicStrict (varsayılan açık): seçilen konuyla ilgisiz başlıklar gizlenir.
+  const topicStrict = topic !== 'general' && params.get('tstrict') !== '0';
+  const ctx = { country, topic, city, keyword, windows, sources, world, strict, topicStrict };
   ctx.query = world ? (keyword || '') : buildSearchQuery(ctx);
   return ctx;
 }
