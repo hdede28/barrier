@@ -1,6 +1,6 @@
 'use strict';
 
-// Google News sürümleri: gl = ülke, hl = dil, ceid = "ÜLKE:dil".
+// Google News sürümleri: gl = ülke (code), hl = dil, ceid = "ÜLKE:dil". terms = konu terimlerinin dilleri.
 // terms, konu anahtar kelimelerinin dile göre karşılıklarıdır (arama sorgusunda OR ile birleştirilir).
 const COUNTRIES = [
   { code: 'TR', name: 'Türkiye', nativeName: 'Türkiye', flag: '🇹🇷', hl: 'tr', ceid: 'TR:tr',
@@ -37,7 +37,29 @@ const COUNTRIES = [
     cities: ['القاهرة', 'الإسكندرية', 'الجيزة'] },
   { code: 'AE', name: 'Birleşik Arap Emirlikleri', nativeName: 'الإمارات', flag: '🇦🇪', hl: 'ar', ceid: 'AE:ar', terms: 'ar',
     cities: ['دبي', 'أبو ظبي', 'الشارقة'] },
-].map((c) => ({ ...c, terms: c.terms || c.hl.split('-')[0] }));
+  { code: 'GR', name: 'Yunanistan', nativeName: 'Ελλάδα', flag: '🇬🇷', hl: 'el', ceid: 'GR:el',
+    cities: ['Αθήνα', 'Θεσσαλονίκη', 'Πάτρα', 'Ηράκλειο', 'Λάρισα'] },
+  { code: 'RS', name: 'Sırbistan', nativeName: 'Srbija', flag: '🇷🇸', hl: 'sr', ceid: 'RS:sr',
+    cities: ['Beograd', 'Novi Sad', 'Niš', 'Kragujevac', 'Subotica'] },
+  { code: 'MY', name: 'Malezya', nativeName: 'Malaysia', flag: '🇲🇾', hl: 'en-MY', ceid: 'MY:en', terms: ['en', 'ms'],
+    cities: ['Kuala Lumpur', 'George Town', 'Johor Bahru', 'Ipoh', 'Kota Kinabalu', 'Kuching'] },
+  // approximate: Google Haberler'de bu ülke için ayrı bir sürüm olmayabilir; arama ülke adıyla da daraltılır.
+  { code: 'AL', name: 'Arnavutluk', nativeName: 'Shqipëri', flag: '🇦🇱', hl: 'sq', ceid: 'AL:sq', approximate: true,
+    cities: ['Tiranë', 'Durrës', 'Vlorë', 'Shkodër', 'Elbasan'] },
+  { code: 'XK', name: 'Kosova', nativeName: 'Kosovë', flag: '🇽🇰', hl: 'sq', ceid: 'XK:sq', approximate: true,
+    cities: ['Prishtinë', 'Prizren', 'Pejë', 'Gjakovë', 'Mitrovicë'] },
+  { code: 'MK', name: 'Kuzey Makedonya', nativeName: 'Северна Македонија', flag: '🇲🇰', hl: 'mk', ceid: 'MK:mk', approximate: true,
+    cities: ['Скопје', 'Битола', 'Охрид', 'Куманово', 'Тетово'] },
+  { code: 'ME', name: 'Karadağ', nativeName: 'Crna Gora', flag: '🇲🇪', hl: 'sr', ceid: 'ME:sr', terms: 'sr', approximate: true,
+    cities: ['Podgorica', 'Budva', 'Nikšić', 'Bar', 'Kotor'] },
+  { code: 'IR', name: 'İran', nativeName: 'ایران', flag: '🇮🇷', hl: 'fa', ceid: 'IR:fa', approximate: true,
+    cities: ['تهران', 'اصفهان', 'مشهد', 'شیراز', 'تبریز'] },
+  { code: 'AF', name: 'Afganistan', nativeName: 'افغانستان', flag: '🇦🇫', hl: 'fa', ceid: 'AF:fa', approximate: true,
+    cities: ['کابل', 'هرات', 'مزار شریف', 'قندهار'] },
+  // "a / b" biçimindeki şehir, iki yazımı da arar (OR).
+  { code: 'TN', name: 'Tunus', nativeName: 'تونس', flag: '🇹🇳', hl: 'ar', ceid: 'TN:ar', terms: ['ar', 'fr'], approximate: true,
+    cities: ['Tunis / تونس', 'Sfax / صفاقس', 'Sousse / سوسة', 'Bizerte / بنزرت'] },
+].map((c) => ({ ...c, terms: [].concat(c.terms || c.hl.split('-')[0]) }));
 
 const TOPICS = [
   { id: 'general', label: 'Genel (tüm konular)', icon: '🗞️' },
@@ -61,6 +83,12 @@ const TOPIC_TERMS = {
     es: ['educación', 'escuela', 'universidad', 'docentes'], it: ['istruzione', 'scuola', 'università', 'insegnanti'],
     pt: ['educação', 'escola', 'universidade', 'professores'], ru: ['образование', 'школа', 'университет', 'учителя'],
     ar: ['تعليم', 'مدرسة', 'جامعة', 'معلمين'], ja: ['教育', '学校', '大学', '教師'],
+    sq: ['arsim', 'shkollë', 'universitet', 'mësues'],
+    mk: ['образование', 'училиште', 'универзитет', 'наставници'],
+    sr: ['obrazovanje', 'škola', 'univerzitet', 'образовање', 'школа', 'универзитет'],
+    el: ['εκπαίδευση', 'σχολείο', 'πανεπιστήμιο', 'εκπαιδευτικοί'],
+    fa: ['آموزش', 'مدرسه', 'دانشگاه', 'معلمان'],
+    ms: ['pendidikan', 'sekolah', 'universiti', 'guru']
   },
   politics: {
     tr: ['siyaset', 'hükümet', 'seçim'], en: ['politics', 'government', 'election'],
@@ -68,6 +96,12 @@ const TOPIC_TERMS = {
     es: ['política', 'gobierno', 'elecciones'], it: ['politica', 'governo', 'elezioni'],
     pt: ['política', 'governo', 'eleições'], ru: ['политика', 'правительство', 'выборы'],
     ar: ['سياسة', 'حكومة', 'انتخابات'], ja: ['政治', '政府', '選挙'],
+    sq: ['politikë', 'qeveri', 'zgjedhje'],
+    mk: ['политика', 'влада', 'избори'],
+    sr: ['politika', 'vlada', 'izbori', 'политика', 'влада', 'избори'],
+    el: ['πολιτική', 'κυβέρνηση', 'εκλογές'],
+    fa: ['سیاست', 'دولت', 'انتخابات'],
+    ms: ['politik', 'kerajaan', 'pilihan raya']
   },
   economy: {
     tr: ['ekonomi', 'enflasyon', 'borsa'], en: ['economy', 'inflation', 'business'],
@@ -75,6 +109,12 @@ const TOPIC_TERMS = {
     es: ['economía', 'inflación', 'mercado'], it: ['economia', 'inflazione', 'borsa'],
     pt: ['economia', 'inflação', 'mercado'], ru: ['экономика', 'инфляция', 'рынок'],
     ar: ['اقتصاد', 'تضخم', 'بورصة'], ja: ['経済', 'インフレ', '株価'],
+    sq: ['ekonomi', 'inflacion', 'bursë'],
+    mk: ['економија', 'инфлација', 'берза'],
+    sr: ['ekonomija', 'inflacija', 'berza', 'економија', 'инфлација', 'берза'],
+    el: ['οικονομία', 'πληθωρισμός', 'χρηματιστήριο'],
+    fa: ['اقتصاد', 'تورم', 'بورس'],
+    ms: ['ekonomi', 'inflasi', 'bursa']
   },
   sports: {
     tr: ['spor', 'maç', 'futbol'], en: ['sports', 'match', 'football'],
@@ -82,6 +122,12 @@ const TOPIC_TERMS = {
     es: ['deportes', 'partido', 'fútbol'], it: ['sport', 'partita', 'calcio'],
     pt: ['esporte', 'jogo', 'futebol'], ru: ['спорт', 'матч', 'футбол'],
     ar: ['رياضة', 'مباراة', 'كرة القدم'], ja: ['スポーツ', '試合', 'サッカー'],
+    sq: ['sport', 'ndeshje', 'futboll'],
+    mk: ['спорт', 'натпревар', 'фудбал'],
+    sr: ['sport', 'utakmica', 'fudbal', 'спорт', 'утакмица', 'фудбал'],
+    el: ['αθλητικά', 'αγώνας', 'ποδόσφαιρο'],
+    fa: ['ورزش', 'مسابقه', 'فوتبال'],
+    ms: ['sukan', 'perlawanan', 'bola sepak']
   },
   technology: {
     tr: ['teknoloji', 'yapay zeka', 'yazılım'], en: ['technology', 'AI', 'software'],
@@ -89,6 +135,12 @@ const TOPIC_TERMS = {
     es: ['tecnología', 'IA', 'software'], it: ['tecnologia', 'IA', 'software'],
     pt: ['tecnologia', 'IA', 'software'], ru: ['технологии', 'ИИ', 'программное обеспечение'],
     ar: ['تكنولوجيا', 'ذكاء اصطناعي', 'برمجيات'], ja: ['テクノロジー', 'AI', 'ソフトウェア'],
+    sq: ['teknologji', 'inteligjencë artificiale', 'softuer'],
+    mk: ['технологија', 'вештачка интелигенција', 'софтвер'],
+    sr: ['tehnologija', 'veštačka inteligencija', 'softver', 'технологија', 'вештачка интелигенција', 'софтвер'],
+    el: ['τεχνολογία', 'τεχνητή νοημοσύνη', 'λογισμικό'],
+    fa: ['فناوری', 'هوش مصنوعی', 'نرم\u200cافزار'],
+    ms: ['teknologi', 'kecerdasan buatan', 'perisian']
   },
   health: {
     tr: ['sağlık', 'hastane', 'salgın'], en: ['health', 'hospital', 'disease'],
@@ -96,6 +148,12 @@ const TOPIC_TERMS = {
     es: ['salud', 'hospital', 'enfermedad'], it: ['salute', 'ospedale', 'malattia'],
     pt: ['saúde', 'hospital', 'doença'], ru: ['здоровье', 'больница', 'болезнь'],
     ar: ['صحة', 'مستشفى', 'مرض'], ja: ['健康', '病院', '病気'],
+    sq: ['shëndetësi', 'spital', 'sëmundje'],
+    mk: ['здравство', 'болница', 'болест'],
+    sr: ['zdravlje', 'bolnica', 'bolest', 'здравље', 'болница', 'болест'],
+    el: ['υγεία', 'νοσοκομείο', 'ασθένεια'],
+    fa: ['سلامت', 'بیمارستان', 'بیماری'],
+    ms: ['kesihatan', 'hospital', 'penyakit']
   },
   science: {
     tr: ['bilim', 'araştırma', 'uzay'], en: ['science', 'research', 'space'],
@@ -103,6 +161,12 @@ const TOPIC_TERMS = {
     es: ['ciencia', 'investigación', 'espacio'], it: ['scienza', 'ricerca', 'spazio'],
     pt: ['ciência', 'pesquisa', 'espaço'], ru: ['наука', 'исследование', 'космос'],
     ar: ['علوم', 'بحث', 'فضاء'], ja: ['科学', '研究', '宇宙'],
+    sq: ['shkencë', 'hulumtim', 'hapësirë'],
+    mk: ['наука', 'истражување', 'вселена'],
+    sr: ['nauka', 'istraživanje', 'svemir', 'наука', 'истраживање', 'свемир'],
+    el: ['επιστήμη', 'έρευνα', 'διάστημα'],
+    fa: ['علم', 'پژوهش', 'فضا'],
+    ms: ['sains', 'penyelidikan', 'angkasa']
   },
   culture: {
     tr: ['kültür', 'sanat', 'sinema'], en: ['culture', 'arts', 'film'],
@@ -110,6 +174,12 @@ const TOPIC_TERMS = {
     es: ['cultura', 'arte', 'cine'], it: ['cultura', 'arte', 'cinema'],
     pt: ['cultura', 'arte', 'cinema'], ru: ['культура', 'искусство', 'кино'],
     ar: ['ثقافة', 'فن', 'سينما'], ja: ['文化', '芸術', '映画'],
+    sq: ['kulturë', 'art', 'film'],
+    mk: ['култура', 'уметност', 'филм'],
+    sr: ['kultura', 'umetnost', 'film', 'култура', 'уметност', 'филм'],
+    el: ['πολιτισμός', 'τέχνη', 'κινηματογράφος'],
+    fa: ['فرهنگ', 'هنر', 'سینما'],
+    ms: ['budaya', 'seni', 'filem']
   },
   environment: {
     tr: ['çevre', 'iklim', 'doğa'], en: ['environment', 'climate', 'nature'],
@@ -117,6 +187,12 @@ const TOPIC_TERMS = {
     es: ['medio ambiente', 'clima', 'naturaleza'], it: ['ambiente', 'clima', 'natura'],
     pt: ['meio ambiente', 'clima', 'natureza'], ru: ['экология', 'климат', 'природа'],
     ar: ['بيئة', 'مناخ', 'طبيعة'], ja: ['環境', '気候', '自然'],
+    sq: ['mjedis', 'klimë', 'natyrë'],
+    mk: ['животна средина', 'клима', 'природа'],
+    sr: ['životna sredina', 'klima', 'priroda', 'животна средина', 'клима', 'природа'],
+    el: ['περιβάλλον', 'κλίμα', 'φύση'],
+    fa: ['محیط زیست', 'اقلیم', 'طبیعت'],
+    ms: ['alam sekitar', 'iklim', 'alam semula jadi']
   },
   security: {
     tr: ['güvenlik', 'polis', 'suç'], en: ['security', 'police', 'crime'],
@@ -124,16 +200,24 @@ const TOPIC_TERMS = {
     es: ['seguridad', 'policía', 'crimen'], it: ['sicurezza', 'polizia', 'crimine'],
     pt: ['segurança', 'polícia', 'crime'], ru: ['безопасность', 'полиция', 'преступность'],
     ar: ['أمن', 'شرطة', 'جريمة'], ja: ['治安', '警察', '犯罪'],
+    sq: ['siguri', 'policia', 'krim'],
+    mk: ['безбедност', 'полиција', 'криминал'],
+    sr: ['bezbednost', 'bezbjednost', 'policija', 'kriminal', 'безбедност', 'полиција', 'криминал'],
+    el: ['ασφάλεια', 'αστυνομία', 'έγκλημα'],
+    fa: ['امنیت', 'پلیس', 'جرم'],
+    ms: ['keselamatan', 'polis', 'jenayah']
   },
 };
 
 const findCountry = (code) => COUNTRIES.find((c) => c.code === code);
 const findTopic = (id) => TOPICS.find((t) => t.id === id);
 
+// Ülkenin tüm dillerindeki terimleri birleştirir; hiçbiri yoksa İngilizceye düşer.
 function termsFor(topicId, country) {
   const byLang = TOPIC_TERMS[topicId];
   if (!byLang) return [];
-  return byLang[country.terms] || byLang.en;
+  const terms = [...new Set(country.terms.flatMap((l) => byLang[l] || []))];
+  return terms.length ? terms : byLang.en;
 }
 
-module.exports = { COUNTRIES, TOPICS, findCountry, findTopic, termsFor };
+module.exports = { COUNTRIES, TOPICS, TOPIC_TERMS, findCountry, findTopic, termsFor };

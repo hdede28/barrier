@@ -36,9 +36,17 @@ function cleanText(s, max = 80) {
 
 const quoteTerm = (t) => (/\s/.test(t) ? `"${t}"` : t);
 
+// "Tunis / تونس" gibi şehirler iki yazımı da arar.
+function cityClause(city) {
+  const names = city.split('/').map((n) => n.trim()).filter(Boolean);
+  return names.length > 1 ? `(${names.map((n) => `"${n}"`).join(' OR ')})` : `"${names[0]}"`;
+}
+
 function buildSearchQuery({ country, city, topic, keyword }) {
   const parts = [];
-  if (city) parts.push(`"${city}"`);
+  if (city) parts.push(cityClause(city));
+  // Ayrı Google Haberler sürümü olmayan ülkelerde ülke adı sorguya eklenir, sonuçlar dünyaya dağılmasın.
+  else if (country.approximate) parts.push(quoteTerm(country.nativeName));
   const terms = topic && topic !== 'general' ? termsFor(topic, country) : [];
   if (terms.length) parts.push(terms.length > 1 ? `(${terms.map(quoteTerm).join(' OR ')})` : quoteTerm(terms[0]));
   if (keyword) parts.push(keyword);

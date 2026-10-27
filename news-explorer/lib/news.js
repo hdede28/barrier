@@ -15,7 +15,7 @@ async function fetchWindow(newsBase, ctx, win, limit) {
   const url = new URL('/rss/search', newsBase);
   url.searchParams.set('q', `${ctx.query} ${dateOperators(win)}`);
   url.searchParams.set('hl', ctx.country.hl);
-  url.searchParams.set('gl', ctx.country.code);
+  url.searchParams.set('gl', ctx.country.gl || ctx.country.code);
   url.searchParams.set('ceid', ctx.country.ceid);
   const res = await fetch(url, {
     headers: { 'user-agent': 'Mozilla/5.0 (compatible; HaberAtlasi/1.0)', accept: 'application/rss+xml, text/xml' },

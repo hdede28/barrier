@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { parseRss } = require('../lib/rss');
 const { buildSearchQuery, planWindows, cleanText, dateOperators, parseSearchParams } = require('../lib/query');
-const { findCountry } = require('../data/meta');
+const { findCountry, COUNTRIES, TOPICS, TOPIC_TERMS, termsFor } = require('../data/meta');
 
 test('parseRss: başlık, kaynak, tarih ve CDATA/varlık çözümü', () => {
   const xml = `<rss><channel>
@@ -71,4 +71,39 @@ test('parseSearchParams: ülke ve konu doğrulaması', () => {
   assert.throws(() => parseSearchParams(p({ ...base, country: 'XX' })), /ülke/);
   assert.throws(() => parseSearchParams(p({ ...base, topic: 'nope' })), /konu/);
   assert.equal(parseSearchParams(p({ ...base, topic: 'sports', city: 'İstanbul' }), new Date('2026-10-27')).windows.length, 1);
+});
+
+test('her ülkenin her konu için terimi var ve kodlar benzersiz', () => {
+  assert.equal(new Set(COUNTRIES.map((c) => c.code)).size, COUNTRIES.length);
+  for (const c of COUNTRIES) {
+    assert.ok(c.cities.length > 0, c.code);
+    for (const lang of c.terms) {
+      for (const t of TOPICS.filter((x) => x.id !== 'general')) {
+        assert.ok(TOPIC_TERMS[t.id][lang]?.length >= 3, `${c.code}/${t.id}/${lang} terimi eksik`);
+      }
+    }
+  }
+});
+
+test('yeni ülkeler: istenen on ülke listede', () => {
+  for (const code of ['AL', 'XK', 'MK', 'RS', 'ME', 'GR', 'IR', 'AF', 'TN', 'MY']) assert.ok(findCountry(code), code);
+});
+
+test('termsFor: çok dilli ülkede diller birleşir (Tunus: Arapça + Fransızca)', () => {
+  const t = termsFor('education', findCountry('TN'));
+  assert.ok(t.includes('تعليم') && t.includes('école'));
+});
+
+test('buildSearchQuery: şehir takma adları OR ile aranır', () => {
+  assert.equal(buildSearchQuery({ country: findCountry('TN'), city: 'Tunis / تونس', topic: 'general', keyword: '' }),
+    '("Tunis" OR "تونس")');
+});
+
+test('buildSearchQuery: yaklaşık sürümlü ülkede şehir yoksa ülke adı eklenir, sürümü olanda eklenmez', () => {
+  assert.equal(buildSearchQuery({ country: findCountry('AL'), city: '', topic: 'sports', keyword: '' }),
+    'Shqipëri (sport OR ndeshje OR futboll)');
+  assert.equal(buildSearchQuery({ country: findCountry('XK'), city: 'Prizren', topic: 'sports', keyword: '' }),
+    '"Prizren" (sport OR ndeshje OR futboll)');
+  assert.equal(buildSearchQuery({ country: findCountry('GR'), city: '', topic: 'sports', keyword: '' }),
+    '(αθλητικά OR αγώνας OR ποδόσφαιρο)');
 });

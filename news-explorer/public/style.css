@@ -27,6 +27,7 @@ select:focus-visible, input:focus-visible, button:focus-visible, .card:focus-vis
 .actions { display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
 button { font: inherit; font-weight: 700; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 10px 20px; cursor: pointer; }
 button:disabled { opacity: .6; cursor: progress; }
+.note { margin: 14px 0 0; padding: 9px 12px; border-radius: 8px; background: var(--warn-bg); color: var(--warn); font-size: .84rem; }
 .hint { color: var(--muted); font-size: .82rem; flex: 1 1 260px; }
 
 .status { margin-top: 18px; padding: 10px 14px; border-radius: 10px; background: var(--accent-soft); font-size: .92rem; }

@@ -4,7 +4,7 @@
   const $ = (id) => document.getElementById(id);
   const el = {
     form: $('search'), country: $('country'), city: $('city'), cityCustom: $('cityCustom'), cityCustomWrap: $('cityCustomWrap'),
-    topic: $('topic'), range: $('range'), from: $('from'), to: $('to'), keyword: $('keyword'), go: $('go'),
+    countryNote: $('countryNote'), topic: $('topic'), range: $('range'), from: $('from'), to: $('to'), keyword: $('keyword'), go: $('go'),
     status: $('status'), timeline: $('timeline'), toolbar: $('toolbar'), filter: $('filter'), sort: $('sort'), list: $('list'),
   };
   const CUSTOM_CITY = '__custom';
@@ -27,8 +27,15 @@
   const daysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
   const option = (value, text, selected) => Object.assign(document.createElement('option'), { value, textContent: text, selected: !!selected });
 
+  // Türkiye başta, diğerleri Türkçe alfabeye göre.
   function fillCountries(selected) {
-    el.country.replaceChildren(...meta.countries.map((c) => option(c.code, `${c.flag} ${c.name}`, c.code === selected)));
+    const sorted = meta.countries.slice().sort((a, b) =>
+      (b.code === 'TR') - (a.code === 'TR') || a.name.localeCompare(b.name, 'tr'));
+    el.country.replaceChildren(...sorted.map((c) => option(c.code, `${c.flag} ${c.name}`, c.code === selected)));
+  }
+
+  function syncCountryNote() {
+    el.countryNote.hidden = !meta.countries.find((c) => c.code === el.country.value)?.approximate;
   }
 
   function fillCities(selectedCity) {
@@ -201,6 +208,7 @@
 
     fillCountries(meta.countries.some((c) => c.code === saved.country) ? saved.country : 'TR');
     fillCities(saved.city || '');
+    syncCountryNote();
     el.topic.replaceChildren(...meta.topics.map((t) => option(t.id, `${t.icon} ${t.label}`, t.id === saved.topic)));
     if ([...el.range.options].some((o) => o.value === saved.range)) el.range.value = saved.range;
     el.from.value = saved.from || iso(daysAgo(365));
@@ -210,7 +218,7 @@
     el.keyword.value = saved.q || '';
     syncCustomRange();
 
-    el.country.addEventListener('change', () => fillCities(''));
+    el.country.addEventListener('change', () => { fillCities(''); syncCountryNote(); });
     el.city.addEventListener('change', () => { syncCustomCity(); if (el.city.value === CUSTOM_CITY) el.cityCustom.focus(); });
     el.range.addEventListener('change', syncCustomRange);
     el.filter.addEventListener('input', render);

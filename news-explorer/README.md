@@ -66,4 +66,7 @@ Notlar:
 
 - Google Haberler resmi bir API değildir; biçimi veya erişim kuralları değişebilir.
 - Eski haberlerin bağlantıları yayıncı tarafından kaldırılmış olabilir.
+- Arnavutluk, Kosova, Kuzey Makedonya, Karadağ, İran, Afganistan ve Tunus için Google Haberler'de ayrı bir sürüm
+  olmayabilir (`data/meta.js` içinde `approximate: true`). Bu ülkelerde arama yerel dildeki terimlerle ve ülke adıyla yapılır;
+  sonuçlar az ya da eksik olabilir. Bu sürümleri canlıda denemedim.
 - Şehir, sorguda geçen bir kelimedir (konum filtresi değil): şehir adı geçen haberler gelir.
