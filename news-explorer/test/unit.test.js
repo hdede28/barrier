@@ -86,7 +86,7 @@ test('her ülkenin her konu için terimi var ve kodlar benzersiz', () => {
 });
 
 test('yeni ülkeler: istenen on ülke listede', () => {
-  for (const code of ['AL', 'XK', 'MK', 'RS', 'ME', 'GR', 'IR', 'AF', 'TN', 'MY']) assert.ok(findCountry(code), code);
+  for (const code of ['AL', 'XK', 'MK', 'RS', 'ME', 'GR', 'IR', 'AF', 'TN', 'MY', 'GM']) assert.ok(findCountry(code), code);
 });
 
 test('termsFor: çok dilli ülkede diller birleşir (Tunus: Arapça + Fransızca)', () => {

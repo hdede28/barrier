@@ -56,6 +56,8 @@ const COUNTRIES = [
     cities: ['تهران', 'اصفهان', 'مشهد', 'شیراز', 'تبریز'] },
   { code: 'AF', name: 'Afganistan', nativeName: 'افغانستان', flag: '🇦🇫', hl: 'fa', ceid: 'AF:fa', approximate: true,
     cities: ['کابل', 'هرات', 'مزار شریف', 'قندهار'] },
+  { code: 'GM', name: 'Gambiya', nativeName: 'Gambia', flag: '🇬🇲', hl: 'en', ceid: 'GM:en', terms: 'en', approximate: true,
+    cities: ['Banjul', 'Serekunda', 'Brikama', 'Bakau', 'Farafenni', 'Basse Santa Su'] },
   // "a / b" biçimindeki şehir, iki yazımı da arar (OR).
   { code: 'TN', name: 'Tunus', nativeName: 'تونس', flag: '🇹🇳', hl: 'ar', ceid: 'TN:ar', terms: ['ar', 'fr'], approximate: true,
     cities: ['Tunis / تونس', 'Sfax / صفاقس', 'Sousse / سوسة', 'Bizerte / بنزرت'] },
