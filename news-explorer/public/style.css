@@ -115,3 +115,7 @@ label.check small { color: var(--muted); font-weight: 400; }
 .names li { overflow-wrap: anywhere; }
 .names b { display: inline-block; min-width: 2.2em; color: var(--muted); text-transform: uppercase; font-size: .75rem; }
 #lastUpdate { color: var(--muted); font-weight: 400; }
+
+.src-summary li.pending { color: var(--muted); border-style: dashed; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .src-summary li.pending { animation: none; } }

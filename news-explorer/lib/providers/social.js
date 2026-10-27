@@ -34,6 +34,7 @@ const HOUR = 3600 * 1000;
 // ---- Mastodon: herkese açık etiket (hashtag) akışları, anahtarsız RSS ------------------------------------------------
 const mastodon = {
   id: 'mastodon',
+  deadline: 12000,
   label: 'Mastodon',
   kind: 'social',
   available: true,
@@ -73,6 +74,7 @@ const mastodon = {
 // ---- Reddit: herkese açık arama RSS'i (bulut sunucularından engellenebilir) ---------------------------------------------
 const reddit = {
   id: 'reddit',
+  deadline: 8000,
   label: 'Reddit',
   kind: 'social',
   available: true,
@@ -113,6 +115,7 @@ const reddit = {
 // ---- Hacker News: Algolia'nın resmî, anahtarsız API'si (teknoloji/bilim konuları ve dünya araması) --------------------------
 const hn = {
   id: 'hn',
+  deadline: 8000,
   label: 'Hacker News',
   kind: 'social',
   available: true,

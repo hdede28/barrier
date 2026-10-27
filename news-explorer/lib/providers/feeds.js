@@ -22,6 +22,8 @@ async function withHost(url, fn) {
 }
 
 const FEED_TTL_MS = 5 * 60 * 1000;
+const MAX_STALE_MS = 3 * 60 * 60 * 1000; // bundan eski kayıt bayat sayılmaz, beklenerek yenilenir
+const FAIL_TTL_MS = 5 * 60 * 1000; // bozuk akış bu süre boyunca yeniden denenmez (her aramada 8 sn kaybettirmesin)
 const FEED_LIMIT = 100;
 const CONCURRENCY = 12;
 const DEADLINE_MS = 14000; // toplam süre: yavaş akışlar sonuçları geciktirmesin
@@ -67,16 +69,41 @@ function createMatcher(ctx) {
 }
 
 // kind: 'news' (yayıncı akışları) ya da 'social' (herkese açık sosyal medya hesapları).
-function createFeedProvider({ kind, feeds }) {
+function createFeedProvider({ kind, feeds, ttl = FEED_TTL_MS }) {
   const mine = feeds.filter((f) => f.kind === kind);
   const cache = new Map(); // url -> { at, items }
+  const failures = new Map(); // url -> { at, message }
+  const inflight = new Map(); // url -> Promise (aynı akış için tek istek)
 
+  function refresh(feed) {
+    if (inflight.has(feed.url)) return inflight.get(feed.url);
+    const run = (async () => {
+      try {
+        const items = parseFeed(await withHost(feed.url, () => fetchText(feed.url, { timeout: 8000 })), FEED_LIMIT);
+        cache.set(feed.url, { at: Date.now(), items });
+        failures.delete(feed.url);
+        return items;
+      } catch (err) {
+        failures.set(feed.url, { at: Date.now(), message: errorText(err) });
+        throw err;
+      } finally {
+        inflight.delete(feed.url);
+      }
+    })();
+    inflight.set(feed.url, run);
+    return run;
+  }
+
+  // Bayat-ama-kullanılabilir önbellek: kayıt varsa (bayat olsa bile) anında döner, bayatsa arkada yenilenir.
   async function load(feed) {
     const hit = cache.get(feed.url);
-    if (hit && Date.now() - hit.at < FEED_TTL_MS) return hit.items;
-    const items = parseFeed(await withHost(feed.url, () => fetchText(feed.url, { timeout: 8000 })), FEED_LIMIT);
-    cache.set(feed.url, { at: Date.now(), items });
-    return items;
+    if (hit && Date.now() - hit.at < MAX_STALE_MS) {
+      if (Date.now() - hit.at >= ttl) refresh(feed).catch(() => {});
+      return hit.items;
+    }
+    const bad = failures.get(feed.url);
+    if (bad && Date.now() - bad.at < FAIL_TTL_MS) throw new Error(bad.message);
+    return refresh(feed);
   }
 
   return {
@@ -84,6 +111,14 @@ function createFeedProvider({ kind, feeds }) {
     label: kind === 'news' ? 'Yayıncı akışları' : 'Sosyal medya hesapları',
     kind,
     available: mine.length > 0,
+    deadline: 16000,
+    // Sunucu açılırken akışları arka planda ısıtır: ilk aramalar bellekten anında yanıt alır.
+    async warm(concurrency = 4) {
+      let next = 0;
+      await Promise.all(Array.from({ length: Math.min(concurrency, mine.length) }, async () => {
+        while (next < mine.length) await load(mine[next++]).catch(() => {});
+      }));
+    },
     skip(ctx, { now }) {
       if (ctx.mode === 'breaking' && kind === 'social') return 'Son dakika modunda kullanılmaz';
       if (!ctx.world && !mine.some((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code))) return 'Bu ülke için tanımlı akış yok';

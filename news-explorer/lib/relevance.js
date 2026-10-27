@@ -44,29 +44,40 @@ const cache = new Map();
 function lexicon(topic, lang) {
   const key = `${topic}|${lang}`;
   if (!cache.has(key)) {
-    const terms = [...(TOPIC_TERMS[topic]?.[lang] || []), ...(EXTRA[topic]?.[lang] || [])].map(norm);
-    cache.set(key, [...new Set(terms)].map((t) => ({
+    const terms = [...new Set([...(TOPIC_TERMS[topic]?.[lang] || []), ...(EXTRA[topic]?.[lang] || [])].map(norm))];
+    const compiled = terms.map((t) => ({
       t,
       re: NO_BOUNDARY.has(lang) || CJK.test(t) ? null : new RegExp(`(^|[^\\p{L}\\p{N}])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'u'),
-    })));
+    }));
+    // Ön süzgeç: hiçbir terim geçmiyorsa tek regex testiyle konu elenir (başlıkların çoğu çoğu konuyla hiç eşleşmez).
+    const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const boundary = terms.filter((t) => !(NO_BOUNDARY.has(lang) || CJK.test(t))).map(esc);
+    const plain = terms.filter((t) => NO_BOUNDARY.has(lang) || CJK.test(t)).map(esc);
+    const parts = [];
+    if (boundary.length) parts.push(`(?:^|[^\\p{L}\\p{N}])(?:${boundary.join('|')})`);
+    if (plain.length) parts.push(`(?:${plain.join('|')})`);
+    cache.set(key, { compiled, any: parts.length ? new RegExp(parts.join('|'), 'u') : null });
   }
   return cache.get(key);
 }
 
-// Sözcük başından eşleşir ("okul" -> okullar; "spor" -> transport'u yakalamaz).
-function topicScore(title, topic, lang) {
-  const text = ` ${norm(title)} `;
-  return lexicon(topic, lang).reduce((n, { t, re }) => n + ((re ? re.test(text) : text.includes(t)) ? 1 : 0), 0);
+// Sözcük başından eşleşir ("okul" -> okullar; "spor" -> transport'u yakalamaz). text: ` ${norm(başlık)} `
+function scoreText(text, topic, lang) {
+  const lex = lexicon(topic, lang);
+  if (!lex.any || !lex.any.test(text)) return 0;
+  return lex.compiled.reduce((n, { t, re }) => n + ((re ? re.test(text) : text.includes(t)) ? 1 : 0), 0);
 }
+const topicScore = (title, topic, lang) => scoreText(` ${norm(title)} `, topic, lang);
 
 const TOPIC_IDS = TOPICS.map((t) => t.id).filter((id) => id !== 'general');
 
 // Başlık seçilen konuyla ilgisiz mi? Sözlüğü zayıf dillerde (ör. Korece) karar verilemez, elenmez.
 function offTopic(title, topic, lang) {
   if (!RICH_LANGS.has(lang)) return false;
-  const mine = topicScore(title, topic, lang);
+  const text = ` ${norm(title)} `; // bir kez normalleştirilir
+  const mine = scoreText(text, topic, lang);
   if (!mine) return true;
-  return TOPIC_IDS.some((id) => id !== topic && topicScore(title, id, lang) > mine);
+  return TOPIC_IDS.some((id) => id !== topic && scoreText(text, id, lang) > mine);
 }
 
 module.exports = { foreignFocus, mentions, namesOf, topicScore, offTopic };

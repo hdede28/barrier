@@ -41,7 +41,22 @@ function createServer({
   providers = createProviders({ feeds, disabled: (process.env.DISABLED_SOURCES || '').split(',').map((x) => x.trim()).filter(Boolean) }),
 } = {}) {
   const cache = createMemoryCache();
-  const handleNews = (url) => getNews(url.searchParams, { newsBase, bases: cleanBases(bases), cache, providers, timing, breakingTtl });
+  const handleNews = (url, extra = {}) => getNews(url.searchParams, { newsBase, bases: cleanBases(bases), cache, providers, timing, breakingTtl, ...extra });
+
+  // Akışlı yanıt (NDJSON): kaynaklar bittikçe ara sonuç ("partial"), sonunda "final". Yavaş bir kaynak, hızlı olanların sonuçlarını bekletmez.
+  async function streamNews(url, res) {
+    res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
+    const write = (o) => { if (!res.writableEnded) res.write(`${JSON.stringify(o)}\n`); };
+    try {
+      write({ type: 'final', body: await handleNews(url, { onProgress: (body) => write({ type: 'partial', body }) }) });
+    } catch (err) {
+      const known = err instanceof HttpError;
+      if (!known) console.error(err);
+      write({ type: 'error', status: known ? err.status : 500, error: known ? err.message : 'Beklenmeyen bir hata oluştu.' });
+    }
+    res.end();
+  }
+
 
   function readJson(req, maxBytes = 100_000) {
     return new Promise((resolve, reject) => {
@@ -89,19 +104,19 @@ function createServer({
     });
   }
 
-  return http.createServer(async (req, res) => {
+  const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://localhost');
       if (req.method === 'POST' && url.pathname === '/api/translate') return sendJson(res, 200, await handleTranslate(req));
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Yalnızca GET desteklenir.' });
-      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, world: WORLD, maarif: { names: MAARIF_NAMES }, version: VERSION, sources: describe(providers), translation: translator?.provider || false });
+      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, world: WORLD, stream: true, maarif: { names: MAARIF_NAMES }, version: VERSION, sources: describe(providers), translation: translator?.provider || false });
       if (url.pathname === '/api/diagnose') {
         const report = await diagnose({ providers, feeds, bases: cleanBases(bases), withFeeds: url.searchParams.get('feeds') === '1', version: VERSION });
         if (url.searchParams.get('json') === '1') return sendJson(res, 200, report);
         res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
         return res.end(formatText(report));
       }
-      if (url.pathname === '/api/news') return sendJson(res, 200, await handleNews(url));
+      if (url.pathname === '/api/news') return url.searchParams.get('stream') === '1' ? await streamNews(url, res) : sendJson(res, 200, await handleNews(url));
       return serveStatic(url, res);
     } catch (err) {
       if (err instanceof HttpError) return sendJson(res, err.status, { error: err.message });
@@ -110,13 +125,20 @@ function createServer({
       return sendJson(res, 500, { error: 'Beklenmeyen bir hata oluştu.' });
     }
   });
+  // Akışları arka planda ısıtır (ilk aramalar bellekten yanıtlansın); testlerde çağrılmaz.
+  server.warm = () => providers.forEach((p) => p.warm?.());
+  return server;
 }
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 3000;
   // Barındırma servisleri PORT tanımlar ve dışarıdan erişim ister; yerelde yalnızca localhost.
   const host = process.env.HOST || (process.env.PORT ? '0.0.0.0' : '127.0.0.1');
-  createServer().listen(port, host, () => console.log(`Haber Atlası: http://${host}:${port}`));
+  const server = createServer();
+  server.listen(port, host, () => {
+    console.log(`Haber Atlası: http://${host}:${port}`);
+    if (process.env.WARM_FEEDS !== '0') setTimeout(() => server.warm(), 1500);
+  });
 }
 
 module.exports = { createServer };

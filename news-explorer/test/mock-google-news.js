@@ -11,7 +11,7 @@ const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, 
 const rss = (items) => `<?xml version="1.0"?><rss version="2.0" xmlns:News="https://www.bing.com/news"><channel><title>mock</title>${items.join('')}</channel></rss>`;
 const hoursAgo = (n) => new Date(Date.now() - n * 3600000);
 
-function createMockGoogleNews({ perRequest = 40, fail = false, gdeltFail = false, bingFail = false, gdelt429Times = 0 } = {}) {
+function createMockGoogleNews({ perRequest = 40, fail = false, gdeltFail = false, bingFail = false, gdelt429Times = 0, gdeltNoRetryAfter = false, slowFeedMs = 0 } = {}) {
   let gdeltCalls = 0;
   const requests = [];
   const log = (url, extra) => requests.push({ path: url.pathname, q: url.searchParams.get('q') || url.searchParams.get('query'), ...extra });
@@ -22,7 +22,7 @@ function createMockGoogleNews({ perRequest = 40, fail = false, gdeltFail = false
     if (url.pathname === '/api/v2/doc/doc') {
       log(url, { start: url.searchParams.get('startdatetime'), end: url.searchParams.get('enddatetime') });
       if (gdeltFail) { res.writeHead(200); return res.end('Your query was too short or too common.'); }
-      if (++gdeltCalls <= gdelt429Times) { res.writeHead(429, { 'retry-after': '0' }); return res.end('slow down'); }
+      if (++gdeltCalls <= gdelt429Times) { res.writeHead(429, gdeltNoRetryAfter ? {} : { 'retry-after': '0' }); return res.end('slow down'); }
       const d = (s) => Date.parse(`${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}Z`);
       const t0 = d(url.searchParams.get('startdatetime'));
       const t1 = d(url.searchParams.get('enddatetime'));
@@ -83,6 +83,18 @@ function createMockGoogleNews({ perRequest = 40, fail = false, gdeltFail = false
         it(7, 'Turkish Maarif Foundation signs deal in Somalia', 2),
         it(8, 'Galatasaray won the derby', 3),
       ]));
+    }
+
+    if (url.pathname === '/feeds/slow.xml') {
+      log(url, {});
+      const it = (h, title, n) => `<item><title>${esc(title)}</title><link>https://slow.example/${n}</link><pubDate>${hoursAgo(h).toUTCString()}</pubDate></item>`;
+      return setTimeout(() => { res.writeHead(200, { 'content-type': 'application/rss+xml' }); res.end(rss([it(1, 'Yavaş akıştan ilk haber', 0), it(2, 'Yavaş akıştan ikinci haber', 1)])); }, slowFeedMs);
+    }
+
+    if (url.pathname === '/feeds/fail.xml') {
+      log(url, {});
+      res.writeHead(500);
+      return res.end('hata');
     }
 
     if (url.pathname === '/feeds/empty.xml') {

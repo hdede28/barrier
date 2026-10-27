@@ -49,6 +49,7 @@ function planJobs(ctx) {
 // Dünya aramasında 10 yayın sürümü (ABD, Almanya, Türkiye, Japonya…) her biri kendi dilindeki terimlerle ayrı sorgulanır.
 module.exports = {
   id: 'google',
+  deadline: 15000,
   label: 'Google Haberler',
   kind: 'news',
   skip: () => null,

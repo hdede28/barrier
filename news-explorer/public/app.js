@@ -14,6 +14,7 @@
   };
   const CUSTOM_CITY = '__custom';
   const AUTO_REFRESH_MS = 90000;
+  const SEARCH_TIMEOUT_MS = 60000; // bu süre dolarsa beklemeyi bırakır, o ana kadar gelenleri korur
   const GO_LABEL = { search: 'Haberleri getir', breaking: 'Son dakikayı getir', maarif: 'Maarif haberlerini getir' };
   const fmtMonth = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' });
   const fmtMonthShort = new Intl.DateTimeFormat('tr-TR', { month: 'short', year: '2-digit' });
@@ -95,7 +96,10 @@
     el.srcSummary.hidden = !list.length;
     el.srcSummary.replaceChildren(...list.map((src) => {
       const li = document.createElement('li');
-      if (src.error) {
+      if (src.pending) {
+        li.className = 'pending';
+        li.textContent = `${src.label} …`;
+      } else if (src.error) {
         li.className = 'err';
         li.textContent = `${src.label}: alınamadı`;
       } else if (src.skipped) {
@@ -111,6 +115,7 @@
       src.error && { text: `${src.label}: ${src.error}` },
       src.skipped && { text: `${src.label}: ${src.skipped}`, info: true },
       src.note && !src.error && { text: `${src.label}: ${src.note}`, info: true },
+      !src.pending && !src.error && src.ms > 6000 && { text: `${src.label}: yavaş yanıt verdi (${Math.round(src.ms / 1000)} sn)`, info: true },
     ]).filter(Boolean);
     el.srcNotes.hidden = !notes.length;
     el.srcNotes.replaceChildren(...notes.map((n) => node('li', { className: n.info ? 'info' : '', textContent: n.text })));
@@ -170,6 +175,40 @@
     }
   }
 
+  // Sonuçlar akış halinde (NDJSON) gelir: her kaynak bittikçe ara sonuç, sonunda "final". Akış desteklenmiyorsa tek yanıt.
+  async function fetchNews(params, signal, onPartial) {
+    if (!meta.stream || !window.ReadableStream) {
+      const res = await fetch(`/api/news?${params}`, { signal });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `Sunucu hatası (${res.status})`);
+      return body;
+    }
+    params.set('stream', '1');
+    const res = await fetch(`/api/news?${params}`, { signal });
+    if (!res.ok || !res.body) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Sunucu hatası (${res.status})`);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      let nl;
+      while ((nl = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        const msg = JSON.parse(line);
+        if (msg.type === 'partial') onPartial(msg.body);
+        else if (msg.type === 'final') return msg.body;
+        else if (msg.type === 'error') throw new Error(msg.error);
+      }
+      if (done) throw new Error('Bağlantı yarıda kesildi. Yeniden dene.');
+    }
+  }
+
   async function runSearch({ silent = false } = {}) {
     const breaking = mode === 'breaking';
     const range = breaking ? { from: '', to: '' } : currentRange();
@@ -193,8 +232,14 @@
     }
 
     controller?.abort();
-    controller = new AbortController();
+    const mine = (controller = new AbortController());
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; mine.abort(); }, SEARCH_TIMEOUT_MS);
+    const started = Date.now();
+    // Hiç sonuç gelmediyse geçen süre görünür: "takıldı mı?" belirsizliği kalmasın.
+    const ticker = silent ? null : setInterval(() => { if (!data) setStatus(`${breaking ? 'Son dakika haberleri' : 'Haberler'} getiriliyor… ${Math.round((Date.now() - started) / 1000)} sn`); }, 1000);
     loading = true;
+    data = silent ? data : null;
     if (!silent) {
       syncFields();
       setStatus(breaking ? 'Son dakika haberleri getiriliyor…' : 'Haberler getiriliyor…');
@@ -208,26 +253,34 @@
         mode, country: ui.country || 'ALL', city: ui.city, topic: ui.topic, q: ui.q, sources: ui.sources, strict: ui.strict,
         tstrict: ui.tstrict, hours: ui.hours, from: range.from, to: range.to,
       });
-      const res = await fetch(`/api/news?${params}`, { signal: controller.signal });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || `Sunucu hatası (${res.status})`);
+      const body = await fetchNews(params, mine.signal, (partial) => {
+        if (silent || mine !== controller) return;
+        // Ara sonuç: o ana kadar bitmiş kaynakların haberleri hemen gösterilir.
+        data = partial;
+        activeWindow = null;
+        view = 'original';
+        render();
+      });
       // Son dakika: önceki yenilemede görünmeyenler "YENİ" işaretlenir (ilk yüklemede işaret yok).
       const links = new Set(body.items.map((i) => i.link));
       fresh = silent || seen.size ? new Set([...links].filter((l) => !seen.has(l))) : new Set();
       seen = links;
       data = body;
-      if (!silent) { activeWindow = null; view = 'original'; translateRun++; }
+      if (!silent) { activeWindow = null; translateRun++; if (view === 'tr') view = 'original'; }
       render();
       if (breaking) el.lastUpdate.textContent = `· son güncelleme ${fmtClock.format(new Date())}`;
     } catch (err) {
-      if (err.name === 'AbortError') return;
+      if (err.name === 'AbortError' && !timedOut) return; // yeni bir arama başladı
       if (silent) { el.lastUpdate.textContent = '· yenileme başarısız, tekrar denenecek'; return; }
-      data = null;
-      setStatus(err.message || 'Bir hata oluştu.', 'error');
+      const message = timedOut
+        ? 'Sunucu zamanında yanıt vermedi (60 sn). Bazı kaynaklar yavaş olabilir; birkaç saniye sonra yeniden dene ya da kaynak sayısını azalt.'
+        : err.message || 'Bir hata oluştu.';
+      if (data?.items?.length) { render(); setStatus(`${message} Aşağıda o ana kadar gelen haberler var.`, 'error'); }
+      else { data = null; setStatus(message, 'error'); }
     } finally {
-      loading = false;
-      el.go.disabled = false;
-      syncFields();
+      clearTimeout(timer);
+      clearInterval(ticker);
+      if (mine === controller) { loading = false; el.go.disabled = false; syncFields(); }
     }
   }
 
@@ -245,9 +298,11 @@
     if (!data) return;
     const failed = data.windows.filter((w) => w.error).length;
     const note = failed ? ` ${failed} dönem alınamadı.` : '';
-    const head = data.mode === 'breaking' ? `${data.total} haber · son ${data.hours} saat.${note}` : `${data.total} haber bulundu.${note}`;
+    const wait = data.partial ? ` ${data.pending} kaynak bekleniyor…` : '';
+    const head = data.mode === 'breaking' ? `${data.total} haber · son ${data.hours} saat.${note}${wait}` : `${data.total} haber bulundu.${note}${wait}`;
     const detail = data.mode === 'maarif' ? 'Türkiye Maarif Vakfı' : data.mode === 'breaking' ? '' : `Arama:`;
-    setStatus(`${head} ${detail}`.trim(), failed ? 'error' : '', data.mode === 'search' ? data.query || el.topic.selectedOptions[0]?.textContent.trim() : '');
+    const what = [el.city.value && el.city.value !== CUSTOM_CITY ? el.city.value : el.cityCustom.value.trim(), el.topic.value !== 'general' ? el.topic.selectedOptions[0]?.textContent.trim() : '', el.keyword.value.trim()].filter(Boolean).join(' · ');
+    setStatus(`${head} ${detail}`.trim(), failed ? 'error' : '', data.mode === 'search' ? what : '');
     renderSourceSummary();
     const by = data.hiddenBy || {};
     el.hiddenNote.hidden = !data.hidden;

@@ -2,7 +2,7 @@
 
 const { HttpError, parseSearchParams } = require('./query');
 const { createProviders, selectProviders, DEFAULT_BASES } = require('./providers');
-const { errorText } = require('./providers/common');
+const { errorText, withDeadline } = require('./providers/common');
 const { foreignFocus, offTopic } = require('./relevance');
 const { clusterStories } = require('./cluster');
 
@@ -33,24 +33,32 @@ function windowIndex(windows, published) {
   return i < 0 ? null : i;
 }
 
-// Node ve Cloudflare Worker ortak çekirdeği: yalnızca fetch ve AbortSignal kullanır.
-async function search(ctx, providers, deps) {
-  const runs = await Promise.all(providers.map(async (p) => {
-    const skipped = p.skip(ctx, deps);
-    if (skipped) return { p, items: [], skipped };
-    try {
-      return { p, ...(await p.fetch(ctx, deps)) };
-    } catch (err) {
-      return { p, items: [], error: errorText(err) };
-    }
-  }));
+const DEFAULT_DEADLINE_MS = 15000; // bir kaynağın en fazla bekleneceği süre (kaynağın kendi `deadline` değeri öncelikli)
+const EMIT_GAP_MS = 800; // ara sonuçlar en fazla bu sıklıkta gönderilir
+
+// Tek bir kaynağı çalıştırır. Yavaş ya da takılan kaynak zaman sınırında hata olarak kapanır; diğer kaynaklar beklemez.
+async function runProvider(p, ctx, deps) {
+  const skipped = p.skip(ctx, deps);
+  if (skipped) return { p, items: [], skipped, ms: 0 };
+  const limit = deps.deadlines?.[p.id] ?? p.deadline ?? DEFAULT_DEADLINE_MS;
+  const t0 = Date.now();
+  try {
+    return { p, ...(await withDeadline(p.fetch(ctx, deps), limit)), ms: Date.now() - t0 };
+  } catch (err) {
+    return { p, items: [], error: errorText(err), ms: Date.now() - t0 };
+  }
+}
+
+// Biten kaynakların sonuçlarını tek gövdede birleştirir (runs[i] === null: o kaynak hâlâ bekleniyor).
+function buildBody(ctx, providers, runs, partial) {
+  const done = runs.filter(Boolean);
 
   // Aynı haber tek satırda toplanır; hangi kaynaklarda göründüğü saklanır. Adres aynıysa her zaman aynı haberdir;
   // başlık aynıysa yalnızca farklı kaynaklar arasında (aynı kaynağın günlük tekrarlanan başlıkları silinmesin).
   const byLink = new Map();
   const byTitle = new Map();
   const items = [];
-  for (const run of runs) {
+  for (const run of done) {
     for (const it of run.items) {
       const tk = titleKey(it.title);
       const sameTitle = tk.length >= 15 ? byTitle.get(tk) : null;
@@ -82,7 +90,7 @@ async function search(ctx, providers, deps) {
   const recency = (it) => it.story?.last || it.published || '';
   visible.sort((a, b) => recency(b).localeCompare(recency(a)));
 
-  const google = runs.find((r) => r.p.id === 'google');
+  const google = runs.find((r) => r?.p.id === 'google');
   const counts = ctx.windows.map(() => 0);
   visible.forEach((it) => { if (it.window !== null) counts[it.window]++; });
   const shown = {};
@@ -98,20 +106,42 @@ async function search(ctx, providers, deps) {
     hours: ctx.hours || null,
     generatedAt: new Date().toISOString(),
     world: ctx.world,
+    partial,
+    pending: runs.filter((r) => !r).length,
     items: visible,
-    sources: runs.map((r) => ({
-      id: r.p.id, label: r.p.label, kind: r.p.kind,
-      count: shown[r.p.id] || 0, found: r.items.length, error: r.error || null, skipped: r.skipped || null, note: r.note || null,
-    })),
+    sources: providers.map((p, i) => {
+      const r = runs[i];
+      if (!r) return { id: p.id, label: p.label, kind: p.kind, pending: true, count: 0, found: 0, error: null, skipped: null, note: null };
+      return {
+        id: p.id, label: p.label, kind: p.kind, pending: false,
+        count: shown[p.id] || 0, found: r.items.length, error: r.error || null, skipped: r.skipped || null, note: r.note || null, ms: r.ms,
+      };
+    }),
   };
 }
 
+// Node ve Cloudflare Worker ortak çekirdeği: yalnızca fetch ve AbortSignal kullanır.
+// onProgress(body): kaynaklar bittikçe (en fazla EMIT_GAP_MS aralıkla) o ana kadarki birleşik sonuç.
+async function search(ctx, providers, deps, onProgress) {
+  const runs = new Array(providers.length).fill(null);
+  let lastEmit = 0;
+  await Promise.all(providers.map(async (p, i) => {
+    runs[i] = await runProvider(p, ctx, deps);
+    const waiting = runs.some((r) => !r);
+    if (onProgress && waiting && Date.now() - lastEmit >= EMIT_GAP_MS) {
+      lastEmit = Date.now();
+      onProgress(buildBody(ctx, providers, runs, true));
+    }
+  }));
+  return buildBody(ctx, providers, runs, false);
+}
+
 // cache: { get(key) -> body | undefined, set(key, body) } (eşzamansız olabilir)
-async function getNews(searchParams, { newsBase, bases = {}, cache, providers = createProviders(), now = new Date(), timing, breakingTtl = 60 }) {
+async function getNews(searchParams, { newsBase, bases = {}, cache, providers = createProviders(), now = new Date(), timing, breakingTtl = 60, deadlines, onProgress }) {
   const ctx = parseSearchParams(searchParams, now);
   const chosen = selectProviders(providers, ctx.sources);
   if (!chosen.length) throw new HttpError(400, 'Geçerli bir kaynak seçilmedi.');
-  const deps = { bases: { ...DEFAULT_BASES, ...bases, ...(newsBase && { google: newsBase }) }, now, ...(timing && { timing }) };
+  const deps = { bases: { ...DEFAULT_BASES, ...bases, ...(newsBase && { google: newsBase }) }, now, ...(timing && { timing }), ...(deadlines && { deadlines }) };
 
   // Son dakika önbelleği kısa tutulur (varsayılan 60 sn); 0 = önbellek yok
   const bucket = ctx.mode === 'breaking' ? (breakingTtl > 0 ? Math.floor(Date.now() / (breakingTtl * 1000)) : Math.random()) : '';
@@ -119,7 +149,7 @@ async function getNews(searchParams, { newsBase, bases = {}, cache, providers = 
   const hit = await cache?.get(key);
   if (hit) return { ...hit, cached: true };
 
-  const body = await search(ctx, chosen, deps);
+  const body = await search(ctx, chosen, deps, onProgress);
   // Çalışan hiçbir kaynak yoksa (hepsi hata verdiyse) önbelleğe alma: geçici bir kesinti 10 dakika sürmesin.
   const failed = body.sources.filter((s) => s.error);
   if (failed.length && failed.length === body.sources.filter((s) => !s.skipped).length) {

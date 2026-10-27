@@ -11,7 +11,8 @@ async function fetchText(url, { timeout = 10000, headers = {} } = {}) {
   });
   if (!res.ok) {
     // status ve Retry-After, çağıranın yeniden deneme kararı için (ör. 429)
-    throw Object.assign(new Error(`Kaynak ${res.status} döndürdü`), { status: res.status, retryAfter: Number(res.headers.get('retry-after')) || 0 });
+    const ra = res.headers.get('retry-after');
+    throw Object.assign(new Error(`Kaynak ${res.status} döndürdü`), { status: res.status, retryAfter: ra === null ? -1 : Number(ra) || 0 }); // -1: başlık yok
   }
   return res.text();
 }
@@ -27,15 +28,41 @@ function inRange(published, from, to, now) {
 }
 
 // Karşılaştırma için: küçük harf, aksan ve nokta farkları atılır ("İstanbul" = "Istanbul", "Köln" = "Koln").
-const norm = (s) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ı/g, 'i');
+const fold = (s) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ı/g, 'i');
+// Kısa metinler (terimler, ülke/şehir adları) tekrar tekrar normalleştirilir: sonucu bellekte tutulur.
+const foldCache = new Map();
+const norm = (s) => {
+  if (s.length > 40) return fold(s);
+  let v = foldCache.get(s);
+  if (v === undefined) { v = fold(s); if (foldCache.size < 20000) foldCache.set(s, v); }
+  return v;
+};
 const BOUNDARY = '[^\\p{L}\\p{N}]';
 
-// Kısa terimler ("AI", "IA") başka sözcüklerin içinde eşleşmesin diye sözcük sınırıyla aranır.
-function containsTerm(text, term) {
-  const t = norm(term);
-  if (t.length > 3) return text.includes(t);
-  const esc = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|${BOUNDARY})${esc}($|${BOUNDARY})`, 'u').test(text);
+// Terim eşleştiriciler bir kez derlenir. Kısa terimler ("AI", "IA") başka sözcüklerin içinde eşleşmesin diye sözcük sınırıyla aranır.
+const termCache = new Map();
+function termMatcher(term) {
+  let m = termCache.get(term);
+  if (!m) {
+    const t = norm(term);
+    if (t.length > 3) m = (text) => text.includes(t);
+    else {
+      const re = new RegExp(`(^|${BOUNDARY})${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|${BOUNDARY})`, 'u');
+      m = (text) => re.test(text);
+    }
+    termCache.set(term, m);
+  }
+  return m;
+}
+const containsTerm = (text, term) => termMatcher(term)(text);
+
+// Bir işlem zaman sınırını aşarsa reddeder (yavaş bir kaynak tüm aramayı bekletmesin).
+function withDeadline(promise, ms) {
+  let timer;
+  const limit = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(Object.assign(new Error(`zaman sınırı aşıldı (${Math.round(ms / 1000)} sn)`), { name: 'DeadlineError' })), ms);
+  });
+  return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
 }
 
 const langOf = (hl) => (hl || 'en').split('-')[0];
@@ -48,4 +75,4 @@ const LANG_CODES = {
 };
 const langFromName = (name) => LANG_CODES[(name || '').toLowerCase()] || 'en';
 
-module.exports = { sleep, langOf, langFromName, DAY, iso, daysAgo, fetchText, errorText, inRange, norm, containsTerm };
+module.exports = { withDeadline, sleep, langOf, langFromName, DAY, iso, daysAgo, fetchText, errorText, inRange, norm, containsTerm };

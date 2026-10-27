@@ -87,3 +87,49 @@ test('tanı raporu: boş çıkan akışın içeriğinden örnek gösterilir', as
   assert.match(formatText(report), /içerik: <html><body>Access denied/);
   mock.close();
 });
+
+test('GDELT: Retry-After vermeyen 429\'da pes eder, sonraki istekler 2 dk sessiz kalır (sınırlamayı uzatmaz)', async () => {
+  const mock = await createMockGoogleNews({ perRequest: 2, gdelt429Times: 99, gdeltNoRetryAfter: true });
+  const b = mock.base;
+  const app = createServer({ newsBase: b, bases: { gdelt: b }, feeds: [], translator: null, timing: { gdeltGap: 1, retryWait: 5, blockMs: 60000 } });
+  await new Promise((r) => app.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${app.address().port}`;
+  const get = async (topic) => (await (await fetch(`${base}/api/news?${qs({ ...recent, sources: 'gdelt,google', topic })}`)).json());
+  const t0 = Date.now();
+  const a = await get('education');
+  assert.ok(Date.now() - t0 < 3000, 'hızlı pes eder');
+  assert.match(a.sources.find((x) => x.id === 'gdelt').error, /sınırladı/);
+  assert.equal(mock.requests.filter((x) => x.path === '/api/v2/doc/doc').length, 1, 'Retry-After yok: yeniden deneme yok');
+  const c = await get('sports');
+  assert.match(c.sources.find((x) => x.id === 'gdelt').error, /sn sonra yeniden denenebilir/);
+  assert.equal(mock.requests.filter((x) => x.path === '/api/v2/doc/doc').length, 1, 'sessizlik süresinde GDELT\'e istek gitmez');
+  app.close(); mock.close();
+});
+
+test('takılan kaynak zaman sınırında kapanır, diğer kaynaklar beklemez', async () => {
+  const hang = { id: 'slow', label: 'Yavaş', kind: 'news', available: true, deadline: 80, skip: () => null, fetch: () => new Promise(() => {}) };
+  const ok = { id: 'fast', label: 'Hızlı', kind: 'news', available: true, skip: () => null, fetch: async () => ({ items: [{ title: 'Hızlı kaynaktan bir haber', link: 'https://f/1', source: 'F', published: new Date().toISOString() }] }) };
+  const { getNews } = require('../lib/news');
+  const t0 = Date.now();
+  const body = await getNews(new URLSearchParams({ country: 'TR', from: day(-2), to: day(0), tstrict: '0' }), { providers: [hang, ok] });
+  assert.ok(Date.now() - t0 < 1500, 'zaman sınırında döner');
+  assert.equal(body.total, 1);
+  assert.match(body.sources.find((x) => x.id === 'slow').error, /zaman sınırı/);
+});
+
+test('ara sonuçlar: hızlı kaynak bitince önce o gönderilir, yavaş olan bitince son sonuç', async () => {
+  const { getNews } = require('../lib/news');
+  const item = (t) => ({ title: t, link: `https://x/${t}`, source: 'S', published: new Date().toISOString() });
+  const late = { id: 'late', label: 'Geç', kind: 'news', available: true, skip: () => null, fetch: () => new Promise((r) => setTimeout(() => r({ items: [item('Geç gelen haber başlığı')] }), 120)) };
+  const early = { id: 'early', label: 'Erken', kind: 'news', available: true, skip: () => null, fetch: async () => ({ items: [item('Erken gelen haber başlığı')] }) };
+  const partials = [];
+  const body = await getNews(new URLSearchParams({ country: 'TR', from: day(-2), to: day(0), tstrict: '0' }), { providers: [late, early], onProgress: (b) => partials.push(b) });
+  assert.equal(partials.length, 1);
+  assert.equal(partials[0].partial, true);
+  assert.equal(partials[0].total, 1);
+  assert.equal(partials[0].pending, 1);
+  assert.equal(partials[0].sources.find((x) => x.id === 'late').pending, true);
+  assert.equal(body.partial, false);
+  assert.equal(body.total, 2);
+  assert.equal(body.pending, 0);
+});

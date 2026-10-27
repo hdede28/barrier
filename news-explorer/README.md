@@ -160,6 +160,23 @@ Ayrıca varsayılan olarak açık bir süzgeç vardır: **Başka ülkeleri konu 
 **Göster** düğmesi sonuçların üstünde görünür. Süzgeç bir sezgidir: yalnızca başlığa bakar, "İran'a ihracat arttı" gibi yerel haberleri de
 gizleyebilir. Gerekirse kutuyu kapat.
 
+## Hız ve zaman sınırları
+
+Bir arama onlarca kaynağa gider; yavaş bir kaynak diğerlerini bekletmesin diye:
+
+- **Her kaynağın zaman sınırı var** (Google 15 sn, GDELT 12 sn, Bing 10 sn, akışlar 16 sn, Mastodon 12 sn, Reddit/HN 8 sn). Süresi dolan kaynak hata olarak
+  işaretlenir, diğerlerinin sonuçları gösterilir.
+- **Sonuçlar akış halinde gelir** (`/api/news?stream=1`, satır satır JSON): ilk biten kaynağın haberleri hemen görünür, bekleyen kaynaklar
+  "Bing Haberler …" diye işaretlenir. Hiçbir şey gelmezse geçen süre yazılır; tarayıcı 60 sn sonra bekleyişi bırakır ve o ana kadar gelenleri korur.
+- **GDELT hızlı pes eder:** aynı anda tek istek, 429'da (Retry-After vermiyorsa) yeniden denemez ve 2 dakika yeni istek göndermez
+  (sınırlamayı uzatmamak için), aynı sorgu 20 dakika önbellekten gelir.
+- **Akışlar bellekten gelir:** bir akış 5 dakikada bir arkada yenilenir; eski kayıt bile (3 saate kadar) anında sunulur. Bozuk akış 5 dakika
+  yeniden denenmez. Sunucu açılırken akışlar arka planda ısıtılır (`WARM_FEEDS=0` ile kapatılır).
+- Süzgeçler (ülke, konu) başlık başına ~0,08 ms'dir; regex'ler ve normalleştirmeler bir kez derlenip bellekte tutulur.
+- Sonuçların altındaki kaynak özeti 6 saniyeden yavaş yanıt veren kaynakları yazar; `/api/diagnose` her kaynağın süresini gösterir.
+- **Render ücretsiz planı** 15 dakika kullanılmayınca uyur; ilk açılış bir dakikaya kadar sürebilir. Çok sayıda akış ve işlemci yavaş olduğundan,
+  gerekirse kaynak kutularından kullanmadıklarını kapat ya da ücretli bir plana geç.
+
 ## Haber kaynakları
 
 Aynı arama birden çok kaynakta paralel çalışır; sonuçlar birleştirilir, tekrarlar tek satıra indirilir (`+2 kaynakta daha`).

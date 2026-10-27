@@ -10,6 +10,7 @@ const LIMIT = 100;
 // Bing Haberler RSS: yalnızca son 30 gün. qft=interval: 8 = 7 gün, 9 = 30 gün.
 module.exports = {
   id: 'bing',
+  deadline: 10000,
   label: 'Bing Haberler',
   kind: 'news',
   skip: (ctx, { now }) => (ctx.windows.at(-1).to < daysAgo(now, 30) ? 'Bing yalnızca son 30 günü kapsar' : null),
