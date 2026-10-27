@@ -4,7 +4,7 @@
   const $ = (id) => document.getElementById(id);
   const el = {
     form: $('search'), country: $('country'), city: $('city'), cityCustom: $('cityCustom'), cityCustomWrap: $('cityCustomWrap'),
-    countryNote: $('countryNote'), topic: $('topic'), range: $('range'), from: $('from'), to: $('to'), keyword: $('keyword'), go: $('go'),
+    countryNote: $('countryNote'), lang: $('lang'), viewOriginal: $('viewOriginal'), viewTr: $('viewTr'), langNote: $('langNote'), topic: $('topic'), range: $('range'), from: $('from'), to: $('to'), keyword: $('keyword'), go: $('go'),
     status: $('status'), timeline: $('timeline'), toolbar: $('toolbar'), filter: $('filter'), sort: $('sort'), list: $('list'),
   };
   const CUSTOM_CITY = '__custom';
@@ -17,6 +17,11 @@
   let data = null;
   let activeWindow = null;
   let controller = null;
+  let view = 'original';
+  let searchedCountry = '';
+  let translationOn = false;
+  const translations = new Map(); // orijinal başlık -> Türkçe
+  let translateRun = 0;
 
   const store = {
     get() { try { return JSON.parse(localStorage.getItem('haber-atlasi') || '{}'); } catch { return {}; } },
@@ -103,6 +108,9 @@
       if (!res.ok) throw new Error(body.error || `Sunucu hatası (${res.status})`);
       data = body;
       activeWindow = null;
+      view = 'original';
+      translateRun++;
+      searchedCountry = ui.country;
       render();
     } catch (err) {
       if (err.name === 'AbortError') return;
@@ -124,10 +132,11 @@
     const q = el.filter.value.trim().toLocaleLowerCase('tr');
     let items = data.items.filter((it) =>
       (activeWindow === null || it.window === activeWindow) &&
-      (!q || `${it.title} ${it.source}`.toLocaleLowerCase('tr').includes(q)));
+      (!q || `${it.title} ${translations.get(it.title) || ''} ${it.source}`.toLocaleLowerCase('tr').includes(q)));
     if (el.sort.value === 'asc') items = items.slice().reverse();
 
     el.toolbar.hidden = data.total === 0;
+    syncLang();
     el.list.replaceChildren(...(items.length ? renderGroups(items) : [emptyState(data.total)]));
   }
 
@@ -188,18 +197,64 @@
     a.href = /^https?:\/\//i.test(it.link) ? it.link : '#';
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
-    const t = Object.assign(document.createElement('div'), { className: 't', textContent: it.title });
+    const tr = view === 'tr' ? translations.get(it.title) : null;
+    const t = Object.assign(document.createElement('div'), { className: 't', textContent: tr || it.title, dir: 'auto' });
+    const parts = [t];
+    // Çeviri gösterilirken orijinal başlık da altta kalır.
+    if (tr && tr !== it.title) parts.push(Object.assign(document.createElement('div'), { className: 'o', textContent: it.title, dir: 'auto' }));
     const m = document.createElement('div');
     m.className = 'm';
     if (it.source) m.append(Object.assign(document.createElement('span'), { className: 'src', textContent: it.source }));
     if (it.published) m.append(Object.assign(document.createElement('span'), { textContent: fmtTime.format(new Date(it.published)) }));
-    a.append(t, m);
+    a.append(...parts, m);
     return a;
+  }
+
+  // Orijinal | Türkçe geçişi: Türkiye seçiliyken gösterilmez.
+  function syncLang() {
+    const foreign = searchedCountry !== 'TR' && Boolean(data) && data.total > 0;
+    el.lang.hidden = !foreign;
+    el.viewOriginal.setAttribute('aria-pressed', String(view === 'original'));
+    el.viewTr.setAttribute('aria-pressed', String(view === 'tr'));
+    el.viewTr.disabled = !translationOn;
+    el.viewTr.title = translationOn ? '' : 'Çeviri bu sunucuda kapalı';
+    el.langNote.hidden = !foreign || translationOn;
+    el.langNote.textContent = 'Türkçe çeviri için sunucuda ANTHROPIC_API_KEY tanımlı olmalı. Şimdilik başlıklar orijinal dilinde gösteriliyor.';
+  }
+
+  async function setView(next) {
+    if (next === view || !data) return;
+    const run = ++translateRun;
+    if (next === 'original') { view = 'original'; return render(); }
+    const pending = [...new Set(data.items.map((i) => i.title).filter((t) => t && !translations.has(t)))];
+    el.viewTr.disabled = el.viewOriginal.disabled = true;
+    try {
+      for (let i = 0; i < pending.length; i += 40) {
+        setStatus(`Türkçeye çevriliyor… ${Math.min(i + 40, pending.length)}/${pending.length}`);
+        const chunk = pending.slice(i, i + 40);
+        const res = await fetch('/api/translate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts: chunk }) });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || `Çeviri başarısız (${res.status})`);
+        chunk.forEach((t, k) => translations.set(t, body.translations[k]));
+      }
+      if (run !== translateRun) return;
+      view = 'tr';
+      render();
+    } catch (err) {
+      if (run !== translateRun) return;
+      view = 'original';
+      render();
+      setStatus(`${err.message} Başlıklar orijinal dilinde gösteriliyor.`, 'error');
+    } finally {
+      el.viewOriginal.disabled = false;
+      syncLang();
+    }
   }
 
   async function init() {
     try {
       meta = await (await fetch('/api/meta')).json();
+      translationOn = Boolean(meta.translation);
     } catch {
       return setStatus('Uygulama verileri yüklenemedi. Sunucunun çalıştığından emin ol.', 'error');
     }
@@ -223,6 +278,8 @@
     el.range.addEventListener('change', syncCustomRange);
     el.filter.addEventListener('input', render);
     el.sort.addEventListener('change', render);
+    el.viewOriginal.addEventListener('click', () => setView('original'));
+    el.viewTr.addEventListener('click', () => setView('tr'));
     el.form.addEventListener('submit', (e) => { e.preventDefault(); runSearch(); });
 
     if (q.country) runSearch(); // paylaşılan bağlantı: otomatik ara

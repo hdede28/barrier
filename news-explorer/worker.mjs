@@ -3,8 +3,13 @@
 import { COUNTRIES, TOPICS } from './data/meta.js';
 import { HttpError } from './lib/query.js';
 import { getNews, createMemoryCache, CACHE_TTL_MS } from './lib/news.js';
+import { translatorFromEnv } from './lib/translate.js';
 
 const memory = createMemoryCache();
+
+// Çevirmen isolate başına bir kez kurulur (önbelleği ve günlük sayacı orada tutulur).
+let translator;
+const getTranslator = (env) => (translator === undefined ? (translator = translatorFromEnv(env)) : translator);
 
 const json = (body, status = 200, extra = {}) =>
   Response.json(body, { status, headers: { 'cache-control': 'no-store', ...extra } });
@@ -29,8 +34,19 @@ export default {
   async fetch(request, env = {}) {
     try {
       const url = new URL(request.url);
+      if (request.method === 'POST' && url.pathname === '/api/translate') {
+        const t = getTranslator(env);
+        if (!t) throw new HttpError(503, 'Çeviri bu sunucuda kapalı (ANTHROPIC_API_KEY tanımlı değil).');
+        const raw = await request.text();
+        if (raw.length > 100_000) throw new HttpError(413, 'İstek çok büyük.');
+        let body;
+        try { body = JSON.parse(raw); } catch { throw new HttpError(400, 'Geçersiz JSON.'); }
+        return json({ translations: await t.translate(body?.texts), model: t.model });
+      }
       if (request.method !== 'GET') return json({ error: 'Yalnızca GET desteklenir.' }, 405);
-      if (url.pathname === '/api/meta') return json({ countries: COUNTRIES, topics: TOPICS }, 200, { 'cache-control': 'public, max-age=3600' });
+      if (url.pathname === '/api/meta') {
+        return json({ countries: COUNTRIES, topics: TOPICS, translation: Boolean(getTranslator(env)) }, 200, { 'cache-control': 'public, max-age=300' });
+      }
       if (url.pathname === '/api/news') {
         const body = await getNews(url.searchParams, {
           newsBase: env.GOOGLE_NEWS_BASE || 'https://news.google.com',

@@ -63,12 +63,17 @@
       <div id="status" class="status" hidden></div>
       <div id="timeline" class="timeline" hidden></div>
       <div id="toolbar" class="toolbar" hidden>
+        <div id="lang" class="seg" role="group" aria-label="Başlık dili" hidden>
+          <button type="button" id="viewOriginal" aria-pressed="true">Orijinal dil</button>
+          <button type="button" id="viewTr" aria-pressed="false">Türkçe</button>
+        </div>
         <input id="filter" type="search" placeholder="Sonuçlarda ara (başlık veya kaynak)" aria-label="Sonuçlarda ara">
         <select id="sort" aria-label="Sıralama">
           <option value="desc">Yeniden eskiye</option>
           <option value="asc">Eskiden yeniye</option>
         </select>
       </div>
+      <p id="langNote" class="note" role="note" hidden></p>
       <div id="list"></div>
     </section>
   </main>

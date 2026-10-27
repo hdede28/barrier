@@ -1,21 +1,40 @@
 # Haber Atlası
 
 Ülke, şehir ve konu seçerek o alandaki **güncel ve geçmiş** haberleri gösteren küçük bir web uygulaması.
-Bağımlılık yok: yalnızca Node.js 20+ gerekir.
+Tek bağımlılık Türkçe çeviri için `@anthropic-ai/sdk`; Node.js 20+ gerekir. Çeviri isteğe bağlıdır, anahtar yoksa uygulama yalnızca orijinal dilde çalışır.
 
 ```sh
 cd news-explorer
+npm install
 npm start            # http://127.0.0.1:3000
 npm test             # sahte haber kaynağıyla uçtan uca testler
 ```
 
 `PORT` ve `HOST` ortam değişkenleriyle adres değiştirilebilir (varsayılan: `127.0.0.1:3000`).
 
+## Türkçe çeviri
+
+Sonuçların üstündeki **Orijinal dil | Türkçe** düğmesi başlıkları Claude API ile Türkçeye çevirir; çeviri açıkken orijinal başlık
+her haberin altında kalır. Türkiye seçiliyken düğme görünmez. Yalnızca başlıklar çevrilir, haber metinleri değil.
+
+Etkinleştirmek için sunucuya şu ortam değişkenlerini ver (anahtarı kod ya da sohbete yazma):
+
+| Değişken | Anlamı |
+|---|---|
+| `ANTHROPIC_API_KEY` | Zorunlu. [console.anthropic.com](https://console.anthropic.com) üzerinden alınır. Yoksa çeviri kapalı kalır. |
+| `TRANSLATE_MODEL` | İsteğe bağlı. Varsayılan `claude-opus-5-5`. Çok daha ucuz bir seçenek: `claude-haiku-5-5`. |
+| `TRANSLATE_DAILY_LIMIT` | İsteğe bağlı. Günlük en fazla kaç benzersiz başlık çevrilsin (varsayılan 2000). Herkese açık bir adreste maliyeti sınırlar. |
+
+- Başlıklar 40'lık gruplar halinde çevrilir; aynı başlık tekrar çevrilmez (bellekte önbelleklenir).
+- Başlıklar modele "çevrilecek veri" olarak JSON içinde gönderilir; başlık içindeki talimatlar uygulanmaz.
+- Sayaç ve önbellek sunucu yeniden başlayınca sıfırlanır.
+- Render'da: servis → **Environment** → **Add Environment Variable**. Cloudflare'de: `npx wrangler secret put ANTHROPIC_API_KEY`.
+
 ## Yayına alma: en kolay yol (Render, terminal gerekmez)
 
 1. [render.com](https://render.com) hesabı aç, **New → Web Service**, GitHub'ı bağla ve bu depoyu seç.
 2. Ayarlar: **Branch** `claude/news-explorer` (ya da birleştirdiğin dal), **Root Directory** `news-explorer`,
-   **Runtime** Node, **Build Command** boş, **Start Command** `node server.js`, **Instance Type** Free.
+   **Runtime** Node, **Build Command** `npm install`, **Start Command** `node server.js`, **Instance Type** Free.
 3. **Deploy**'a bas. Birkaç dakika sonra `https://<ad>.onrender.com` adresi hazır olur.
 
 Ücretsiz serviste 15 dakika kullanılmazsa uygulama uyur, ilk açılış yaklaşık bir dakika sürer.
