@@ -89,7 +89,7 @@ function createMockGoogleNews({ perRequest = 40, fail = false, gdeltFail = false
       const src = ['Anadolu Ajansı', 'Hürriyet', 'BBC', 'Reuters'][i % 4];
       items.push(`<item>
   <title>${esc(`Haber ${i} – ${q.slice(0, 30)} - ${src}`)}</title>
-  <link>https://news.example.com/${after}/${i}</link>
+  <link>https://news.example.com/${url.searchParams.get('gl')}/${after}/${i}</link>
   <pubDate>${when.toUTCString()}</pubDate>
   <source url="https://${src.replace(/\W/g, '').toLowerCase()}.example.com">${src}</source>
 </item>`);

@@ -1,9 +1,9 @@
 'use strict';
 
-const { termsFor } = require('../../data/meta');
-const { COUNTRY_ALIASES } = require('../../data/feeds');
+const { termsFor, findCountry } = require('../../data/meta');
 const { parseFeed } = require('../rss');
-const { fetchText, errorText, daysAgo, inRange, norm, containsTerm } = require('./common');
+const { mentions, namesOf } = require('../relevance');
+const { fetchText, errorText, daysAgo, inRange, norm, containsTerm, langOf } = require('./common');
 
 const FEED_TTL_MS = 5 * 60 * 1000;
 const FEED_LIMIT = 100;
@@ -13,21 +13,33 @@ const MAX_AGE_DAYS = 60; // RSS akışları yalnızca son birkaç günü/haftay�
 // "Tunis / تونس" -> ['Tunis', 'تونس']
 const cityNames = (city) => city.split('/').map((c) => c.trim()).filter(Boolean);
 
+// Akışın dili ve ülkesi: ülkeye özel akışta ülkenin dili, '*' akışlarda İngilizce (feed.lang ile ezilebilir).
+const feedCountry = (feed) => (feed.countries.length === 1 && feed.countries[0] !== '*' ? findCountry(feed.countries[0]) : null);
+const feedLang = (feed) => feed.lang || (feedCountry(feed) ? langOf(feedCountry(feed).hl) : 'en');
+
 function createMatcher(ctx) {
-  const own = ctx.topic !== 'general' ? termsFor(ctx.topic, ctx.country) : [];
-  // Küresel akışlar çoğunlukla İngilizcedir: ülkenin diline ek olarak İngilizce terimler de aranır.
-  const global = ctx.topic !== 'general' ? [...new Set([...own, ...termsFor(ctx.topic, { terms: ['en'] })])] : [];
   const words = ctx.keyword.split(/\s+/).filter((w) => w && !/^(OR|AND)$/i.test(w));
   const cities = ctx.city ? cityNames(ctx.city) : [];
-  const aliases = COUNTRY_ALIASES[ctx.country.code] || [];
+  const aliases = ctx.world ? [] : namesOf(ctx.country);
+  const termCache = new Map();
+  // Konu terimleri akışın dilinde (ve küresel akışlarda ayrıca İngilizce) aranır.
+  const termsOf = (feed) => {
+    if (ctx.topic === 'general') return [];
+    if (!termCache.has(feed)) {
+      const langs = [...new Set([feedLang(feed), ...(feed.countries.includes('*') || ctx.world ? ['en'] : [])])];
+      termCache.set(feed, termsFor(ctx.topic, { terms: langs }));
+    }
+    return termCache.get(feed);
+  };
   return (it, feed) => {
     const text = norm(`${it.title} ${it.summary}`);
-    const cityHit = cities.some((c) => containsTerm(text, c));
-    if (ctx.city && !cityHit) return false;
-    const isGlobal = feed.countries.includes('*');
-    // Ülkeye özel olmayan ('*') akışlarda haber, şehir ya da ülke adı geçerek ülkeyle ilgisini göstermeli.
-    if (isGlobal && !cityHit && !aliases.some((a) => containsTerm(text, a))) return false;
-    const terms = isGlobal ? global : own;
+    if (!ctx.world) {
+      const cityHit = cities.some((c) => containsTerm(text, c));
+      if (ctx.city && !cityHit) return false;
+      // Ülkeye özel olmayan ('*') akışlarda ülke adı BAŞLIKTA geçmeli (özet metnindeki anma ilgisizdir: "Washington" vb.).
+      if (feed.countries.includes('*') && !cityHit && !aliases.some((a) => mentions(it.title, norm(it.title), a))) return false;
+    }
+    const terms = termsOf(feed);
     if (terms.length && !terms.some((t) => containsTerm(text, t))) return false;
     return words.every((w) => text.includes(norm(w)));
   };
@@ -52,11 +64,11 @@ function createFeedProvider({ kind, feeds }) {
     kind,
     available: mine.length > 0,
     skip(ctx, { now }) {
-      if (!mine.some((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code))) return 'Bu ülke için tanımlı akış yok';
+      if (!ctx.world && !mine.some((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code))) return 'Bu ülke için tanımlı akış yok';
       return ctx.windows.at(-1).to < daysAgo(now, MAX_AGE_DAYS) ? 'Akışlar yalnızca güncel haberleri kapsar' : null;
     },
     async fetch(ctx, { now }) {
-      const applicable = mine.filter((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code));
+      const applicable = ctx.world ? mine : mine.filter((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code));
       const from = ctx.windows[0].from;
       const to = ctx.windows.at(-1).to;
       const match = createMatcher(ctx);
@@ -69,7 +81,10 @@ function createFeedProvider({ kind, feeds }) {
           try {
             const items = (await load(feed))
               .filter((it) => inRange(it.published, from, to, now) && match(it, feed))
-              .map(({ summary, ...it }) => ({ ...it, source: feed.name, sourceUrl: new URL(feed.url).origin }));
+              .map(({ summary, ...it }) => ({
+                ...it, source: feed.name, sourceUrl: new URL(feed.url).origin,
+                lang: feedLang(feed), country: feedCountry(feed)?.code || '', place: feedCountry(feed)?.name || '',
+              }));
             results[i] = { items };
           } catch (err) {
             results[i] = { items: [], error: errorText(err) };

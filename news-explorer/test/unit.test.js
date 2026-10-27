@@ -28,7 +28,10 @@ test('buildSearchQuery: şehir, konu terimleri ve anahtar kelime', () => {
   const tr = findCountry('TR');
   assert.equal(buildSearchQuery({ country: tr, city: 'İzmir', topic: 'education', keyword: '' }),
     '"İzmir" (eğitim OR okul OR üniversite OR öğretmen)');
-  assert.equal(buildSearchQuery({ country: tr, city: '', topic: 'general', keyword: '' }), 'Türkiye');
+  // Konu/şehir/kelime yoksa ülke adı DEĞİL, genel terimler aranır ("Türkiye" aramak adı geçen her haberi getirirdi)
+  const general = buildSearchQuery({ country: tr, city: '', topic: 'general', keyword: '' });
+  assert.ok(!general.includes('Türkiye'));
+  assert.match(general, /^\(eğitim OR okul OR siyaset OR hükümet OR ekonomi/);
   assert.equal(buildSearchQuery({ country: tr, city: 'Ankara', topic: 'technology', keyword: 'robot' }),
     '"Ankara" (teknoloji OR "yapay zeka" OR yazılım) robot');
   // Dil karşılığı olmayan ülkede İngilizce terimlere düşer

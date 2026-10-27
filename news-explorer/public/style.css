@@ -78,3 +78,11 @@ fieldset.sources .hint { margin: 8px 0 0; flex: none; }
 .src-summary li.skip { color: var(--muted); }
 .badge { font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); }
 .badge.social { background: var(--warn-bg); color: var(--warn); }
+
+label.check { flex-direction: row; align-items: flex-start; gap: 9px; font-size: .9rem; font-weight: 500; color: var(--ink); }
+label.check input { width: 18px; height: 18px; padding: 0; margin-top: 2px; accent-color: var(--accent); flex: none; }
+label.check small { color: var(--muted); font-weight: 400; }
+.note.info { background: var(--accent-soft); color: var(--ink); }
+.note code { font-size: .9em; }
+.linkbtn { background: none; color: var(--accent); padding: 0 4px; font-weight: 700; text-decoration: underline; }
+#hiddenNote { margin-top: 10px; }

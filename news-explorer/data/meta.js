@@ -218,8 +218,22 @@ const TOPIC_TERMS = {
   },
 };
 
+// "Tüm dünya" araması: ülke yerine bu yayın sürümlerinde (her biri kendi dilinde terimlerle) aranır.
+const WORLD = { code: 'ALL', name: 'Tüm dünya (çok dilli)', flag: '🌍' };
+const WORLD_EDITION_CODES = ['US', 'GB', 'TR', 'DE', 'FR', 'ES', 'BR', 'RU', 'SA', 'JP'];
+
 const findCountry = (code) => COUNTRIES.find((c) => c.code === code);
 const findTopic = (id) => TOPICS.find((t) => t.id === id);
+
+// Konu seçilmediğinde ("Genel"): her konudan en fazla n terim. Ülke adını aramak yerine bu kullanılır,
+// çünkü ülke adı aramak "o ülkede olan" değil "adı geçen" haberleri getirir.
+function generalTerms(country, n = 2) {
+  const out = [];
+  for (const byLang of Object.values(TOPIC_TERMS)) {
+    for (const lang of country.terms) out.push(...(byLang[lang] || []).slice(0, n));
+  }
+  return [...new Set(out)];
+}
 
 // Ülkenin tüm dillerindeki terimleri birleştirir; hiçbiri yoksa İngilizceye düşer.
 function termsFor(topicId, country) {
@@ -229,4 +243,4 @@ function termsFor(topicId, country) {
   return terms.length ? terms : byLang.en;
 }
 
-module.exports = { COUNTRIES, TOPICS, TOPIC_TERMS, findCountry, findTopic, termsFor };
+module.exports = { COUNTRIES, TOPICS, TOPIC_TERMS, WORLD, WORLD_EDITION_CODES, findCountry, findTopic, termsFor, generalTerms };

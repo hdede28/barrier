@@ -49,12 +49,20 @@
         <label class="wide">Anahtar kelime (isteğe bağlı)
           <input id="keyword" type="text" maxlength="120" placeholder="Örn. burs, deprem, yapay zeka">
         </label>
+        <label class="wide check" id="strictWrap">
+          <input id="strict" type="checkbox" checked>
+          <span>Başka ülkeleri konu alan başlıkları gizle <small>(ör. ABD seçiliyken Afganistan haberleri)</small></span>
+        </label>
         <fieldset class="wide sources">
           <legend>Kaynaklar</legend>
           <div id="sourceBoxes" class="boxes"></div>
           <p class="hint">Çok kaynak daha geniş tarama sağlar, doğruluk anlamına gelmez. Önemli bir haberi her zaman birden çok bağımsız kaynakta ve resmî açıklamalarda karşılaştır.</p>
         </fieldset>
       </div>
+      <p id="worldNote" class="note info" role="note" hidden>
+        Dünya geneli arama: bir <b>konu</b> seç ya da <b>anahtar kelime / isim</b> yaz. Arama, 10 ülkenin yayın sürümünde kendi dillerinde yapılır.
+        İsim yazarken farklı yazımları <code>OR</code> ile ekle: <code>Erdoğan OR Erdogan</code>. Haberleri ülkeye göre süzebilir ve Türkçeye çevirebilirsin.
+      </p>
       <p id="countryNote" class="note" role="note" hidden>
         Google Haberler'de bu ülke için ayrı bir sürüm olmayabilir. Arama ülkenin yerel adı ve dili üzerinden yapılır; sonuçlar az ya da eksik olabilir.
       </p>
@@ -66,6 +74,7 @@
 
     <section id="out" aria-live="polite">
       <div id="status" class="status" hidden></div>
+      <p id="hiddenNote" class="note info" hidden><span id="hiddenText"></span> <button type="button" id="showHidden" class="linkbtn">Göster</button></p>
       <ul id="srcSummary" class="src-summary" hidden></ul>
       <div id="timeline" class="timeline" hidden></div>
       <div id="toolbar" class="toolbar" hidden>
@@ -73,6 +82,7 @@
           <button type="button" id="viewOriginal" aria-pressed="true">Orijinal dil</button>
           <button type="button" id="viewTr" aria-pressed="false">Türkçe</button>
         </div>
+        <select id="place" aria-label="Ülke" hidden></select>
         <select id="kind" aria-label="Kaynak türü" hidden>
           <option value="all">Tüm türler</option>
           <option value="news">Haber siteleri</option>

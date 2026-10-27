@@ -1,7 +1,8 @@
 'use strict';
 
+const { buildSearchQuery } = require('../query');
 const { parseRss } = require('../rss');
-const { fetchText, daysAgo, inRange } = require('./common');
+const { fetchText, daysAgo, inRange, langOf } = require('./common');
 
 const LIMIT = 100;
 
@@ -17,12 +18,16 @@ module.exports = {
     const { country } = ctx;
     const lang = country.hl.includes('-') ? country.hl : `${country.hl}-${country.code}`;
     const url = new URL('/news/search', bases.bing);
-    url.searchParams.set('q', ctx.query);
+    // Dünya aramasında pazar en-US, terimler İngilizce; ülke seçiliyken ülkenin pazarı.
+    url.searchParams.set('q', ctx.world ? buildSearchQuery({ ...ctx, country: { ...country, terms: ['en'] }, generalPerTopic: 1 }) : ctx.query);
     url.searchParams.set('format', 'rss');
-    url.searchParams.set('setmkt', lang);
-    url.searchParams.set('cc', country.code);
+    url.searchParams.set('setmkt', ctx.world ? 'en-US' : lang);
+    if (!ctx.world) url.searchParams.set('cc', country.code);
     url.searchParams.set('qft', `interval="${from >= daysAgo(now, 7) ? 8 : 9}"`);
     const xml = await fetchText(url, { headers: { accept: 'application/rss+xml, text/xml' } });
-    return { items: parseRss(xml, LIMIT * 2).filter((it) => inRange(it.published, from, to, now)).slice(0, LIMIT) };
+    const l = ctx.world ? 'en' : langOf(country.hl);
+    return {
+      items: parseRss(xml, LIMIT * 2).filter((it) => inRange(it.published, from, to, now)).slice(0, LIMIT).map((it) => ({ ...it, lang: l })),
+    };
   },
 };

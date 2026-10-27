@@ -5,7 +5,7 @@
   const el = {
     form: $('search'), country: $('country'), city: $('city'), cityCustom: $('cityCustom'), cityCustomWrap: $('cityCustomWrap'),
     countryNote: $('countryNote'), lang: $('lang'), viewOriginal: $('viewOriginal'), viewTr: $('viewTr'), langNote: $('langNote'), topic: $('topic'), range: $('range'), from: $('from'), to: $('to'), keyword: $('keyword'), go: $('go'),
-    kind: $('kind'), sourceBoxes: $('sourceBoxes'), srcSummary: $('srcSummary'),
+    kind: $('kind'), place: $('place'), strict: $('strict'), strictWrap: $('strictWrap'), worldNote: $('worldNote'), hiddenNote: $('hiddenNote'), hiddenText: $('hiddenText'), showHidden: $('showHidden'), sourceBoxes: $('sourceBoxes'), srcSummary: $('srcSummary'),
     status: $('status'), timeline: $('timeline'), toolbar: $('toolbar'), filter: $('filter'), sort: $('sort'), list: $('list'),
   };
   const CUSTOM_CITY = '__custom';
@@ -47,6 +47,17 @@
 
   const checkedSources = () => [...el.sourceBoxes.querySelectorAll('input:checked')].map((b) => b.value);
 
+  // Haberlerde birden çok ülke varsa (dünya araması) ülkeye göre süzme listesi.
+  function renderPlaces() {
+    const counts = new Map();
+    data.items.forEach((i) => i.place && counts.set(i.place, (counts.get(i.place) || 0) + 1));
+    const prev = el.place.value;
+    el.place.hidden = counts.size < 2;
+    el.place.replaceChildren(option('all', `Tüm ülkeler (${counts.size})`, true),
+      ...[...counts].sort((a, b) => b[1] - a[1]).map(([name, n]) => option(name, `${name} (${n})`, false)));
+    el.place.value = counts.has(prev) ? prev : 'all';
+  }
+
   function renderSourceSummary() {
     const list = data?.sources || [];
     el.srcSummary.hidden = !list.length;
@@ -72,15 +83,26 @@
   function fillCountries(selected) {
     const sorted = meta.countries.slice().sort((a, b) =>
       (b.code === 'TR') - (a.code === 'TR') || a.name.localeCompare(b.name, 'tr'));
-    el.country.replaceChildren(...sorted.map((c) => option(c.code, `${c.flag} ${c.name}`, c.code === selected)));
+    const world = meta.world ? [option(meta.world.code, `${meta.world.flag} ${meta.world.name}`, meta.world.code === selected)] : [];
+    el.country.replaceChildren(...world, ...sorted.map((c) => option(c.code, `${c.flag} ${c.name}`, c.code === selected)));
   }
 
+  const isWorld = () => el.country.value === meta.world?.code;
+
+  // Ülke ↔ dünya modu: dünya aramasında şehir ve ülke süzgeci yoktur.
   function syncCountryNote() {
-    el.countryNote.hidden = !meta.countries.find((c) => c.code === el.country.value)?.approximate;
+    const world = isWorld();
+    el.countryNote.hidden = world || !meta.countries.find((c) => c.code === el.country.value)?.approximate;
+    el.worldNote.hidden = !world;
+    el.city.closest('label').hidden = world;
+    el.strictWrap.hidden = world;
+    if (world) el.cityCustomWrap.hidden = true;
+    else syncCustomCity();
   }
 
   function fillCities(selectedCity) {
     const c = meta.countries.find((x) => x.code === el.country.value);
+    if (!c) { el.city.replaceChildren(option('', '—', true)); el.cityCustom.value = ''; return; }
     const known = c.cities.includes(selectedCity);
     el.city.replaceChildren(
       option('', 'Tüm ülke', !selectedCity),
@@ -127,7 +149,14 @@
     const sources = checkedSources();
     if (!sources.length) return setStatus('En az bir haber kaynağı seç.', 'error');
     const all = sources.length === meta.sources.length;
-    const ui = { country: el.country.value, city: selectedCity(), topic: el.topic.value, range: el.range.value, q: el.keyword.value.trim(), sources: all ? '' : sources.join(',') };
+    const world = isWorld();
+    if (world && el.topic.value === 'general' && !el.keyword.value.trim()) {
+      return setStatus('Dünya geneli aramada bir konu seç ya da anahtar kelime / isim yaz.', 'error');
+    }
+    const ui = {
+      country: el.country.value, city: world ? '' : selectedCity(), topic: el.topic.value, range: el.range.value, q: el.keyword.value.trim(),
+      sources: all ? '' : sources.join(','), strict: !world && !el.strict.checked ? '0' : '',
+    };
     if (ui.range === 'custom') Object.assign(ui, range);
     store.set(ui);
     writeUrl(Object.fromEntries(Object.entries(ui).filter(([, v]) => v)));
@@ -137,11 +166,11 @@
     el.go.disabled = true;
     el.go.textContent = 'Getiriliyor…';
     setStatus('Haberler getiriliyor…');
-    el.timeline.hidden = el.toolbar.hidden = el.srcSummary.hidden = true;
+    el.timeline.hidden = el.toolbar.hidden = el.srcSummary.hidden = el.hiddenNote.hidden = true;
     el.list.replaceChildren();
 
     try {
-      const params = new URLSearchParams({ country: ui.country, city: ui.city, topic: ui.topic, q: ui.q, sources: ui.sources, from: range.from, to: range.to });
+      const params = new URLSearchParams({ country: ui.country, city: ui.city, topic: ui.topic, q: ui.q, sources: ui.sources, strict: ui.strict, from: range.from, to: range.to });
       const res = await fetch(`/api/news?${params}`, { signal: controller.signal });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || `Sunucu hatası (${res.status})`);
@@ -165,8 +194,11 @@
     if (!data) return;
     const failed = data.windows.filter((w) => w.error).length;
     const note = failed ? ` ${failed} dönem alınamadı.` : '';
-    setStatus(`${data.total} haber bulundu.${note} Arama:`, failed ? 'error' : '', data.query);
+    setStatus(`${data.total} haber bulundu.${note} Arama:`, failed ? 'error' : '', data.query || el.topic.selectedOptions[0]?.textContent.trim());
     renderSourceSummary();
+    el.hiddenNote.hidden = !data.hidden;
+    el.hiddenText.textContent = `${data.hidden} haber gizlendi: başlığı başka bir ülkeyi ya da bölgeyi konu alıyor.`;
+    renderPlaces();
     renderTimeline();
     const hasSocial = data.items.some((i) => i.kind === 'social');
     el.kind.hidden = !hasSocial;
@@ -176,6 +208,7 @@
     let items = data.items.filter((it) =>
       (activeWindow === null || it.window === activeWindow) &&
       (el.kind.value === 'all' || it.kind === el.kind.value) &&
+      (el.place.value === 'all' || (it.place || '') === el.place.value) &&
       (!q || `${it.title} ${translations.get(it.title) || ''} ${it.source}`.toLocaleLowerCase('tr').includes(q)));
     if (el.sort.value === 'asc') items = items.slice().reverse();
 
@@ -249,6 +282,7 @@
     const m = document.createElement('div');
     m.className = 'm';
     if (it.kind === 'social') m.append(Object.assign(document.createElement('span'), { className: 'badge social', textContent: 'Sosyal medya · doğrulanmamış' }));
+    if (data.world && it.place) m.append(Object.assign(document.createElement('span'), { className: 'badge', textContent: it.place }));
     if (it.source) m.append(Object.assign(document.createElement('span'), { className: 'src', textContent: it.source }));
     if (it.published) m.append(Object.assign(document.createElement('span'), { textContent: fmtTime.format(new Date(it.published)) }));
     if (it.alsoIn?.length) m.append(Object.assign(document.createElement('span'), { className: 'badge', textContent: `+${it.alsoIn.length} kaynakta daha`, title: it.alsoIn.join(', ') }));
@@ -258,7 +292,7 @@
 
   // Orijinal | Türkçe geçişi: Türkiye seçiliyken gösterilmez.
   function syncLang() {
-    const foreign = searchedCountry !== 'TR' && Boolean(data) && data.total > 0;
+    const foreign = Boolean(data) && data.items.some((i) => (i.lang || 'tr') !== 'tr');
     el.lang.hidden = !foreign;
     el.viewOriginal.setAttribute('aria-pressed', String(view === 'original'));
     el.viewTr.setAttribute('aria-pressed', String(view === 'tr'));
@@ -271,27 +305,32 @@
     el.langNote.textContent = note;
   }
 
-  const sourceLang = () => (meta.countries.find((c) => c.code === searchedCountry)?.hl || 'en').split('-')[0];
-
   async function setView(next) {
     if (next === view || !data) return;
     const run = ++translateRun;
     if (next === 'original') { view = 'original'; return render(); }
-    const pending = [...new Set(data.items.map((i) => i.title).filter((t) => t && !translations.has(t)))];
+    // Başlıklar kaynak dile göre gruplanır (ücretsiz servis kaynak dili ister); Türkçe olanlar çevrilmez.
+    const langOf = new Map();
+    data.items.forEach((i) => { if (i.title && !translations.has(i.title) && !langOf.has(i.title)) langOf.set(i.title, i.lang || 'tr'); });
+    const groups = new Map();
+    for (const [title, lang] of langOf) if (lang !== 'tr') groups.set(lang, [...(groups.get(lang) || []), title]);
+    const jobs = [...groups].flatMap(([lang, titles]) => Array.from({ length: Math.ceil(titles.length / 40) }, (_, k) => ({ lang, chunk: titles.slice(k * 40, k * 40 + 40) })));
+    const total = jobs.reduce((n, j) => n + j.chunk.length, 0);
+    let done = 0;
     el.viewTr.disabled = el.viewOriginal.disabled = true;
     let warning = '';
     let failure = null;
     try {
-      for (let i = 0; i < pending.length; i += 40) {
-        setStatus(`Türkçeye çevriliyor… ${Math.min(i + 40, pending.length)}/${pending.length}`);
-        const chunk = pending.slice(i, i + 40);
+      for (const { lang, chunk } of jobs) {
+        setStatus(`Türkçeye çevriliyor… ${done}/${total}`);
         const res = await fetch('/api/translate', {
           method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ texts: chunk, source: sourceLang() }),
+          body: JSON.stringify({ texts: chunk, source: lang }),
         });
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || `Çeviri başarısız (${res.status})`);
         chunk.forEach((t, k) => { if (typeof body.translations[k] === 'string') translations.set(t, body.translations[k]); });
+        done += chunk.length;
         if (body.warning) { warning = body.warning; break; } // kota doldu: kalanı denemenin anlamı yok
       }
     } catch (err) {
@@ -321,7 +360,7 @@
     const q = Object.fromEntries(new URLSearchParams(location.search));
     const saved = { ...store.get(), ...q };
 
-    fillCountries(meta.countries.some((c) => c.code === saved.country) ? saved.country : 'TR');
+    fillCountries(meta.countries.some((c) => c.code === saved.country) || saved.country === meta.world?.code ? saved.country : 'TR');
     fillCities(saved.city || '');
     syncCountryNote();
     renderSourceBoxes(saved.sources ? saved.sources.split(',') : null);
@@ -338,7 +377,10 @@
     el.city.addEventListener('change', () => { syncCustomCity(); if (el.city.value === CUSTOM_CITY) el.cityCustom.focus(); });
     el.range.addEventListener('change', syncCustomRange);
     el.filter.addEventListener('input', render);
+    el.strict.checked = saved.strict !== '0';
     el.sort.addEventListener('change', render);
+    el.place.addEventListener('change', render);
+    el.showHidden.addEventListener('click', () => { el.strict.checked = false; runSearch(); });
     el.kind.addEventListener('change', render);
     el.viewOriginal.addEventListener('click', () => setView('original'));
     el.viewTr.addEventListener('click', () => setView('tr'));

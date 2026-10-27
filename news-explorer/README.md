@@ -76,6 +76,31 @@ Notlar:
 - Google Haberler'e giden istekler Cloudflare'in IP'lerinden yapılır; Google bazen bu IP'lere kısıtlama uygulayabilir.
   Sık hata görürsen sonuçların altındaki kaynak özetine bak; hatalı kaynağı kapatabilir ya da başka bir kaynak ekleyebilirsin (bkz. Genişletme).
 
+## Dünya geneli arama
+
+Ülke listesinin başındaki **🌍 Tüm dünya** seçeneği tek bir ülkeye bağlı kalmadan arar. Bir **konu** seç (ör. Eğitim) ya da
+**anahtar kelime / isim** yaz; ikisi de boşsa uygulama uyarır.
+
+- **Google Haberler:** 10 yayın sürümü (ABD, İngiltere, Türkiye, Almanya, Fransa, İspanya, Brezilya, Rusya, Suudi Arabistan, Japonya)
+  ayrı ayrı sorgulanır; konu terimleri her sürümün kendi dilindedir. Çok uzun aralıklar bu modda en fazla 3 döneme bölünür.
+- **GDELT / Bing:** ülke filtresi olmadan, konu terimleri İngilizce. GDELT'in İngilizce sorguyu başka dillerdeki haberlerle
+  eşleştirdiği doğrulanmadı.
+- **Yayıncı ve sosyal medya akışları:** hepsi taranır; her akış kendi dilindeki terimlerle aranır.
+- **İsim aratırken** yazımı olduğu gibi aranır; farklı yazımları `OR` ile ekle: `Erdoğan OR Erdogan`. Başka alfabelerdeki yazımı
+  (ör. `Путин`) da ekleyebilirsin.
+- Sonuçlar ülkeye göre süzülebilir (rozet ve liste). Çeviri her haberi kendi dilinden Türkçeye çevirir.
+- Cloudflare ücretsiz planında bir istekte en fazla 50 dış çağrı yapılabilir; dünya araması bu sınıra yaklaşır (Render'da sorun yok).
+
+## Ülke seçiliyken yalnızca o ülkeyle ilgili haberler
+
+Bir ülke seçip konu, şehir ve kelime vermezsen uygulama artık ülke **adını** aramaz; ülkenin dilindeki genel terimleri arar.
+(Eskiden "United States" aranıyordu ve bu, adı geçen her haberi getiriyordu: ABD'yi anan Afganistan haberleri dahil.)
+
+Ayrıca varsayılan olarak açık bir süzgeç vardır: **Başka ülkeleri konu alan başlıkları gizle**. Başlığı başka bir ülkeyi ya da bölgeyi
+(Afganistan, Ukrayna, Gazze…) konu alan ve seçilen ülkeyi ya da şehirlerini hiç anmayan haberler gizlenir; kaç haberin gizlendiği ve
+**Göster** düğmesi sonuçların üstünde görünür. Süzgeç bir sezgidir: yalnızca başlığa bakar, "İran'a ihracat arttı" gibi yerel haberleri de
+gizleyebilir. Gerekirse kutuyu kapat.
+
 ## Haber kaynakları
 
 Aynı arama birden çok kaynakta paralel çalışır; sonuçlar birleştirilir, tekrarlar tek satıra indirilir (`+2 kaynakta daha`).

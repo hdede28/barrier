@@ -33,4 +33,14 @@ function containsTerm(text, term) {
   return new RegExp(`(^|${BOUNDARY})${esc}($|${BOUNDARY})`, 'u').test(text);
 }
 
-module.exports = { DAY, iso, daysAgo, fetchText, errorText, inRange, norm, containsTerm };
+const langOf = (hl) => (hl || 'en').split('-')[0];
+
+// GDELT dil adı -> ISO kodu (çeviri kaynağı için)
+const LANG_CODES = {
+  turkish: 'tr', english: 'en', german: 'de', french: 'fr', spanish: 'es', italian: 'it', portuguese: 'pt', russian: 'ru', arabic: 'ar',
+  japanese: 'ja', greek: 'el', persian: 'fa', farsi: 'fa', albanian: 'sq', macedonian: 'mk', serbian: 'sr', malay: 'ms', dutch: 'nl',
+  chinese: 'zh', korean: 'ko', hindi: 'hi', ukrainian: 'uk', polish: 'pl', romanian: 'ro', bulgarian: 'bg', croatian: 'hr', bosnian: 'bs',
+};
+const langFromName = (name) => LANG_CODES[(name || '').toLowerCase()] || 'en';
+
+module.exports = { langOf, langFromName, DAY, iso, daysAgo, fetchText, errorText, inRange, norm, containsTerm };

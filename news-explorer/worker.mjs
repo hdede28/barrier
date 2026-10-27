@@ -1,6 +1,6 @@
 // Cloudflare Worker girişi. Statik dosyalar (public/) Cloudflare tarafından doğrudan sunulur;
 // yalnızca /api/* istekleri buraya gelir (bkz. wrangler.toml -> run_worker_first).
-import { COUNTRIES, TOPICS } from './data/meta.js';
+import { COUNTRIES, TOPICS, WORLD } from './data/meta.js';
 import { HttpError } from './lib/query.js';
 import { getNews, createMemoryCache, CACHE_TTL_MS } from './lib/news.js';
 import { translatorFromEnv, translationResponse } from './lib/translators.js';
@@ -51,7 +51,7 @@ export default {
       }
       if (request.method !== 'GET') return json({ error: 'Yalnızca GET desteklenir.' }, 405);
       if (url.pathname === '/api/meta') {
-        return json({ countries: COUNTRIES, topics: TOPICS, sources: describe(getProviders(env)), translation: getTranslator(env)?.provider || false }, 200, { 'cache-control': 'public, max-age=300' });
+        return json({ countries: COUNTRIES, topics: TOPICS, world: WORLD, sources: describe(getProviders(env)), translation: getTranslator(env)?.provider || false }, 200, { 'cache-control': 'public, max-age=300' });
       }
       if (url.pathname === '/api/news') {
         const body = await getNews(url.searchParams, {

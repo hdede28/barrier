@@ -6,6 +6,7 @@
 //   name       Haberin kaynağı olarak gösterilen ad
 //   url        RSS / RDF / Atom adresi
 //   kind       'news' (yayıncı) ya da 'social' (herkese açık sosyal medya hesabı)
+//   lang       İsteğe bağlı. Akışın dili (çeviri için); verilmezse ülkenin dili, '*' akışlarda İngilizce
 //   countries  ['TR', ...] yalnızca o ülkelerde gösterilir; '*' tüm ülkelerde, ama başlıkta ülke/şehir adı geçmesi gerekir
 //
 // Sosyal medya hesabı eklemek için (hepsi herkese açık, anahtarsız RSS verir):
@@ -20,7 +21,7 @@ const FEEDS = [
   { name: 'NPR', url: 'https://feeds.npr.org/1001/rss.xml', kind: 'news', countries: ['US'] },
   { name: 'Tagesschau', url: 'https://www.tagesschau.de/index~rss2.xml', kind: 'news', countries: ['DE'] },
   { name: 'NHK', url: 'https://www3.nhk.or.jp/rss/news/cat0.xml', kind: 'news', countries: ['JP'] },
-  { name: 'Balkan Insight', url: 'https://balkaninsight.com/feed/', kind: 'news', countries: ['AL', 'XK', 'MK', 'RS', 'ME', 'GR'] },
+  { name: 'Balkan Insight', url: 'https://balkaninsight.com/feed/', kind: 'news', lang: 'en', countries: ['AL', 'XK', 'MK', 'RS', 'ME', 'GR'] },
   { name: 'BBC News', url: 'https://feeds.bbci.co.uk/news/world/rss.xml', kind: 'news', countries: ['*'] },
   { name: 'Al Jazeera English', url: 'https://www.aljazeera.com/xml/rss/all.xml', kind: 'news', countries: ['*'] },
   { name: 'DW English', url: 'https://rss.dw.com/rdf/rss-en-all', kind: 'news', countries: ['*'] },
@@ -31,8 +32,8 @@ const FEEDS = [
 // '*' akışlarında bir haberin hangi ülkeyle ilgili olduğunu başlık/özetteki bu adlardan anlarız.
 const COUNTRY_ALIASES = {
   TR: ['Türkiye', 'Turkey', 'Turkiye', 'Turkish', 'Türk'],
-  US: ['United States', 'U.S.', 'Washington', 'American', 'Amerika'],
-  GB: ['United Kingdom', 'Britain', 'British', 'England', 'Scotland', 'Wales', 'UK'],
+  US: ['United States', 'U.S.', 'US', 'USA', 'Washington', 'American', 'Amerika', 'ABD'],
+  GB: ['United Kingdom', 'Britain', 'British', 'England', 'Scotland', 'Wales', 'UK', 'London'],
   DE: ['Germany', 'German', 'Deutschland', 'Almanya'],
   FR: ['France', 'French', 'Fransa'],
   ES: ['Spain', 'Spanish', 'España', 'İspanya'],
@@ -60,6 +61,21 @@ const COUNTRY_ALIASES = {
   TN: ['Tunisia', 'Tunisian', 'Tunus', 'Tunis'],
 };
 
+// Başlıkta geçerse haberin "başka bir ülkeyi/bölgeyi konu aldığını" gösteren adlar. Ülke seçiliyken başlığı yalnızca
+// bunlardan birini içeren ve seçilen ülkeyi hiç anmayan haberler gizlenir (listedeki 27 ülkenin takma adlarına ek olarak).
+const OTHER_PLACES = [
+  ['Ukrayna', 'Ukraine', 'Ukrainian', 'Kyiv', 'Kiev'], ['Gazze', 'Gaza', 'Hamas'], ['İsrail', 'Israel', 'Israeli'],
+  ['Çin', 'China', 'Chinese', 'Beijing'], ['Suriye', 'Syria', 'Syrian', 'Damascus'], ['Irak', 'Iraq', 'Iraqi', 'Baghdad'],
+  ['Pakistan', 'Pakistani', 'Islamabad'], ['Yemen', 'Yemeni'], ['Sudan', 'Sudanese', 'Khartoum'], ['Lübnan', 'Lebanon', 'Lebanese', 'Beirut'],
+  ['Kuzey Kore', 'North Korea', 'Pyongyang'], ['Tayvan', 'Taiwan', 'Taipei'], ['Myanmar', 'Burma'], ['Venezuela', 'Caracas'],
+  ['Küba', 'Cuba', 'Havana'], ['Meksika', 'Mexico', 'Mexican'], ['Nijerya', 'Nigeria'], ['Etiyopya', 'Ethiopia'], ['Somali', 'Somalia'],
+  ['Libya', 'Libyan', 'Tripoli'], ['Ürdün', 'Jordan', 'Amman'], ['Katar', 'Qatar', 'Doha'], ['Azerbaycan', 'Azerbaijan', 'Baku'],
+  ['Ermenistan', 'Armenia', 'Yerevan'], ['Gürcistan', 'Georgia', 'Tbilisi'], ['Kazakistan', 'Kazakhstan'], ['Bangladeş', 'Bangladesh'],
+  ['Endonezya', 'Indonesia', 'Jakarta'], ['Filipinler', 'Philippines', 'Manila'], ['Vietnam'], ['Tayland', 'Thailand', 'Bangkok'],
+  ['Güney Kore', 'South Korea', 'Seoul'], ['Polonya', 'Poland', 'Warsaw'], ['Romanya', 'Romania'], ['Bulgaristan', 'Bulgaria'],
+  ['Hırvatistan', 'Croatia'], ['Bosna', 'Bosnia'], ['Kıbrıs', 'Cyprus'], ['Güney Afrika', 'South Africa'], ['Arjantin', 'Argentina'],
+];
+
 // Dağıtımda akış eklemek için: EXTRA_FEEDS='[{"name":"...","url":"https://...","kind":"social","countries":["TR"]}]'
 function loadFeeds(env = process.env) {
   let extra = [];
@@ -71,4 +87,4 @@ function loadFeeds(env = process.env) {
   return [...FEEDS, ...(Array.isArray(extra) ? extra : [])].filter(valid);
 }
 
-module.exports = { FEEDS, COUNTRY_ALIASES, loadFeeds };
+module.exports = { FEEDS, COUNTRY_ALIASES, OTHER_PLACES, loadFeeds };

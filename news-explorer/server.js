@@ -3,7 +3,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const { COUNTRIES, TOPICS } = require('./data/meta');
+const { COUNTRIES, TOPICS, WORLD } = require('./data/meta');
 const { HttpError } = require('./lib/query');
 const { getNews, createMemoryCache } = require('./lib/news');
 const { createProviders, describe } = require('./lib/providers');
@@ -28,9 +28,9 @@ function createServer({
   bases = { gdelt: process.env.GDELT_BASE_URL, bing: process.env.BING_BASE_URL },
   feeds = loadFeeds(),
   translator = translatorFromEnv(),
+  providers = createProviders({ feeds }),
 } = {}) {
   const cache = createMemoryCache();
-  const providers = createProviders({ feeds });
   const handleNews = (url) => getNews(url.searchParams, { newsBase, bases: cleanBases(bases), cache, providers });
 
   function readJson(req, maxBytes = 100_000) {
@@ -84,7 +84,7 @@ function createServer({
       const url = new URL(req.url, 'http://localhost');
       if (req.method === 'POST' && url.pathname === '/api/translate') return sendJson(res, 200, await handleTranslate(req));
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Yalnızca GET desteklenir.' });
-      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, sources: describe(providers), translation: translator?.provider || false });
+      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, world: WORLD, sources: describe(providers), translation: translator?.provider || false });
       if (url.pathname === '/api/news') return sendJson(res, 200, await handleNews(url));
       return serveStatic(url, res);
     } catch (err) {

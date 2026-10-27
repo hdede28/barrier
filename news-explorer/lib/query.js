@@ -1,6 +1,6 @@
 'use strict';
 
-const { findCountry, findTopic, termsFor } = require('../data/meta');
+const { findCountry, findTopic, termsFor, generalTerms, WORLD, WORLD_EDITION_CODES } = require('../data/meta');
 
 const DAY = 86400000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -44,21 +44,27 @@ function cityClause(city) {
 
 const hasCJK = (t) => /[\u3040-\u30ff\u3400-\u9fff]/.test(t);
 
+const orClause = (terms) => (terms.length > 1 ? `(${terms.map(quoteTerm).join(' OR ')})` : quoteTerm(terms[0]));
+
 // minTermLength: çok kısa terimleri (ör. "AI") reddeden kaynaklar için kısa terimleri eler (CJK hariç).
-function buildSearchQuery({ country, city, topic, keyword, minTermLength = 0 }) {
+// generalPerTopic: konu "Genel" iken her konudan kaç terim aransın.
+function buildSearchQuery({ country, city, topic, keyword, minTermLength = 0, generalPerTopic = 2 }) {
   const parts = [];
   if (city) parts.push(cityClause(city));
   // Ayrı Google Haberler sürümü olmayan ülkelerde ülke adı sorguya eklenir, sonuçlar dünyaya dağılmasın.
   else if (country.approximate) parts.push(quoteTerm(country.nativeName));
-  const terms = (topic && topic !== 'general' ? termsFor(topic, country) : []).filter((t) => t.length >= minTermLength || hasCJK(t));
-  if (terms.length) parts.push(terms.length > 1 ? `(${terms.map(quoteTerm).join(' OR ')})` : quoteTerm(terms[0]));
+  const keep = (t) => t.length >= minTermLength || hasCJK(t);
+  const terms = (topic && topic !== 'general' ? termsFor(topic, country) : []).filter(keep);
+  if (terms.length) parts.push(orClause(terms));
   if (keyword) parts.push(keyword);
-  if (!parts.length) parts.push(quoteTerm(country.nativeName));
+  // Konu da şehir de anahtar kelime de yoksa ülke adını aramak yerine tüm konulardan genel terimler aranır:
+  // ülke adı "o ülkede olan" değil "adı geçen" haberleri (ör. ABD için Afganistan haberlerini) getirirdi.
+  if (!parts.length) parts.push(orClause(generalTerms(country, generalPerTopic).filter(keep)));
   return parts.join(' ');
 }
 
 // Aralık kısaysa tek pencere, uzunsa en fazla 12 eşit pencere: her dönemin en ilgili haberleri gelsin.
-function planWindows(fromStr, toStr, now = new Date()) {
+function planWindows(fromStr, toStr, now = new Date(), maxWindows = MAX_WINDOWS) {
   const from = parseDate(fromStr);
   const to = parseDate(toStr);
   if (!from || !to) throw new HttpError(400, 'Tarihler YYYY-AA-GG biçiminde olmalı.');
@@ -67,7 +73,7 @@ function planWindows(fromStr, toStr, now = new Date()) {
   if (to > addDays(now, 1)) throw new HttpError(400, 'Bitiş tarihi gelecekte olamaz.');
 
   const days = Math.round((to - from) / DAY) + 1;
-  const n = days <= SHORT_SPAN_DAYS ? 1 : Math.min(MAX_WINDOWS, Math.ceil(days / 30));
+  const n = days <= SHORT_SPAN_DAYS ? 1 : Math.min(maxWindows, Math.ceil(days / 30));
   const size = Math.ceil(days / n);
   const windows = [];
   for (let i = 0; i < n; i++) {
@@ -82,16 +88,26 @@ function planWindows(fromStr, toStr, now = new Date()) {
 // Google News "before:" bitiş gününü dışarıda bıraktığı için bir gün eklenir.
 const dateOperators = (w) => `after:${w.from} before:${fmt(addDays(parseDate(w.to), 1))}`;
 
+const WORLD_MAX_WINDOWS = 3; // her yayın sürümü ayrı sorgulandığı için dünya aramasında pencere sayısı sınırlı
+
 function parseSearchParams(params, now = new Date()) {
-  const country = findCountry(params.get('country'));
+  const world = params.get('country') === WORLD.code;
+  const country = world ? { ...WORLD, hl: 'en', terms: ['en'], cities: [], world: true } : findCountry(params.get('country'));
   if (!country) throw new HttpError(400, 'Geçersiz ülke.');
   const topic = params.get('topic') || 'general';
   if (!findTopic(topic)) throw new HttpError(400, 'Geçersiz konu.');
-  const city = cleanText(params.get('city'));
+  const city = world ? '' : cleanText(params.get('city'));
   const keyword = cleanText(params.get('q'), 120);
-  const windows = planWindows(params.get('from'), params.get('to'), now);
+  if (world && topic === 'general' && !keyword) {
+    throw new HttpError(400, 'Dünya geneli aramada bir konu seç ya da anahtar kelime / isim yaz.');
+  }
+  const windows = planWindows(params.get('from'), params.get('to'), now, world ? WORLD_MAX_WINDOWS : MAX_WINDOWS);
   const sources = (params.get('sources') || '').split(',').map((x) => x.trim()).filter(Boolean);
-  return { country, topic, city, keyword, windows, sources, query: buildSearchQuery({ country, city, topic, keyword }) };
+  // strict (varsayılan açık): başka ülkeleri konu alan başlıklar gizlenir. Dünya aramasında anlamsız.
+  const strict = !world && params.get('strict') !== '0';
+  const ctx = { country, topic, city, keyword, windows, sources, world, strict };
+  ctx.query = world ? (keyword || '') : buildSearchQuery(ctx);
+  return ctx;
 }
 
-module.exports = { HttpError, cityClause, parseDate, cleanText, buildSearchQuery, planWindows, dateOperators, parseSearchParams };
+module.exports = { HttpError, orClause, WORLD_EDITION_CODES, cityClause, parseDate, cleanText, buildSearchQuery, planWindows, dateOperators, parseSearchParams };

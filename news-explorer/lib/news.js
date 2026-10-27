@@ -3,6 +3,7 @@
 const { HttpError, parseSearchParams } = require('./query');
 const { createProviders, selectProviders, DEFAULT_BASES } = require('./providers');
 const { errorText } = require('./providers/common');
+const { foreignFocus } = require('./relevance');
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 300;
@@ -49,19 +50,29 @@ async function search(ctx, providers, deps) {
       items.push(item);
     }
   }
-  items.sort((a, b) => (b.published || '').localeCompare(a.published || ''));
+  // Ülke seçiliyken başlığı başka bir ülkeyi/bölgeyi konu alan ve seçilen ülkeyi hiç anmayan haberler gizlenir.
+  let hidden = 0;
+  let visible = items;
+  if (ctx.strict) {
+    const own = ctx.city ? ctx.city.split('/').map((c) => c.trim()).filter(Boolean) : [];
+    visible = items.filter((it) => !foreignFocus(it.title, ctx.country, own));
+    hidden = items.length - visible.length;
+  }
+  visible.sort((a, b) => (b.published || '').localeCompare(a.published || ''));
 
   const google = runs.find((r) => r.p.id === 'google');
   const counts = ctx.windows.map(() => 0);
-  items.forEach((it) => { if (it.window !== null) counts[it.window]++; });
+  visible.forEach((it) => { if (it.window !== null) counts[it.window]++; });
   const shown = {};
-  items.forEach((it) => { shown[it.provider] = (shown[it.provider] || 0) + 1; });
+  visible.forEach((it) => { shown[it.provider] = (shown[it.provider] || 0) + 1; });
 
   return {
     query: ctx.query,
     windows: ctx.windows.map((w, i) => ({ ...w, count: counts[i], error: google?.windowErrors?.[i] || null })),
-    total: items.length,
-    items,
+    total: visible.length,
+    hidden,
+    world: ctx.world,
+    items: visible,
     sources: runs.map((r) => ({
       id: r.p.id, label: r.p.label, kind: r.p.kind,
       count: shown[r.p.id] || 0, found: r.items.length, error: r.error || null, skipped: r.skipped || null, note: r.note || null,
@@ -76,7 +87,7 @@ async function getNews(searchParams, { newsBase, bases = {}, cache, providers = 
   if (!chosen.length) throw new HttpError(400, 'Geçerli bir kaynak seçilmedi.');
   const deps = { bases: { ...DEFAULT_BASES, ...bases, ...(newsBase && { google: newsBase }) }, now };
 
-  const key = `${ctx.country.code}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}`;
+  const key = `${ctx.country.code}|${ctx.topic}|${ctx.city}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}|${ctx.strict}`;
   const hit = await cache?.get(key);
   if (hit) return { ...hit, cached: true };
 
