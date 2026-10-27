@@ -10,12 +10,14 @@
     tstrict: $('tstrict'), topicStrictWrap: $('topicStrictWrap'), srcNotes: $('srcNotes'), version: $('version'),
     kind: $('kind'), place: $('place'), strict: $('strict'), strictWrap: $('strictWrap'), worldNote: $('worldNote'), hiddenNote: $('hiddenNote'),
     hiddenText: $('hiddenText'), showHidden: $('showHidden'), sourceBoxes: $('sourceBoxes'), srcSummary: $('srcSummary'),
+    themeBox: $('themeBox'), themeChips: $('themeChips'), themeCounts: $('themeCounts'), stype: $('stype'), hideNote: $('hideNote'),
+    hideText: $('hideText'), undoHide: $('undoHide'),
     status: $('status'), timeline: $('timeline'), toolbar: $('toolbar'), filter: $('filter'), sort: $('sort'), list: $('list'),
   };
   const CUSTOM_CITY = '__custom';
   const AUTO_REFRESH_MS = 90000;
   const SEARCH_TIMEOUT_MS = 60000; // bu süre dolarsa beklemeyi bırakır, o ana kadar gelenleri korur
-  const GO_LABEL = { search: 'Haberleri getir', breaking: 'Son dakikayı getir', maarif: 'Maarif haberlerini getir' };
+  const GO_LABEL = { search: 'Haberleri getir', breaking: 'Son dakikayı getir', maarif: 'Maarif haberlerini getir', radar: 'Eğitim radarını getir' };
   const fmtMonth = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' });
   const fmtMonthShort = new Intl.DateTimeFormat('tr-TR', { month: 'short', year: '2-digit' });
   const fmtDay = new Intl.DateTimeFormat('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -24,7 +26,7 @@
   const rtf = new Intl.RelativeTimeFormat('tr', { numeric: 'auto' });
 
   let meta;
-  let mode = 'search'; // 'search' | 'breaking' | 'maarif'
+  let mode = 'search'; // 'search' | 'breaking' | 'maarif' | 'radar'
   let data = null;
   let activeWindow = null;
   let controller = null;
@@ -36,10 +38,17 @@
   let fresh = new Set(); // bu yenilemede ilk kez görünenler
   const translations = new Map(); // orijinal başlık -> Türkçe
   let translateRun = 0;
+  const themes = new Set(); // radar: seçili tema kimlikleri
+  let activeTheme = null; // radar: sonuçları süzmek için tıklanan tema
+  let hidden = { links: [], sources: [] }; // kullanıcının bu tarayıcıda gizlediği haberler/kaynaklar
 
   const store = {
     get() { try { return JSON.parse(localStorage.getItem('haber-atlasi') || '{}'); } catch { return {}; } },
     set(v) { try { localStorage.setItem('haber-atlasi', JSON.stringify(v)); } catch { /* özel pencere vb. */ } },
+    getHidden() {
+      try { const v = JSON.parse(localStorage.getItem('haber-atlasi-gizli') || '{}'); return { links: v.links || [], sources: v.sources || [] }; } catch { return { links: [], sources: [] }; }
+    },
+    setHidden(v) { try { localStorage.setItem('haber-atlasi-gizli', JSON.stringify(v)); } catch { /* özel pencere vb. */ } },
   };
 
   const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -52,7 +61,7 @@
   // Sekmeye göre alanlar: data-modes="search breaking" olan öğeler yalnızca o modlarda görünür; ek koşullar aşağıda.
   function syncFields() {
     document.querySelectorAll('[data-modes]').forEach((n) => { n.hidden = !n.dataset.modes.split(' ').includes(mode); });
-    const searchLike = mode !== 'maarif';
+    const searchLike = mode === 'search' || mode === 'breaking';
     const world = searchLike && isWorld();
     el.countryNote.hidden = !searchLike || world || !meta.countries.find((c) => c.code === el.country.value)?.approximate;
     el.worldNote.hidden = !world;
@@ -60,6 +69,7 @@
     el.cityCustomWrap.hidden = !searchLike || world || el.city.value !== CUSTOM_CITY;
     el.strictWrap.hidden = !searchLike || world;
     el.topicStrictWrap.hidden = !searchLike || el.topic.value === 'general';
+    el.strictWrap.hidden = el.strictWrap.hidden || mode === 'radar';
     const custom = el.range.value === 'custom' && mode !== 'breaking';
     document.querySelectorAll('.custom-date').forEach((n) => { n.hidden = !custom; });
     el.go.textContent = loading ? 'Getiriliyor…' : GO_LABEL[mode];
@@ -75,6 +85,33 @@
       label.append(box, src.label);
       if (src.kind === 'social') label.append(node('small', { textContent: '(doğrulanmamış olabilir)' }));
       return label;
+    }));
+  }
+
+  // Eğitim radarı temaları: çoklu seçim, boşsa hepsi.
+  function renderThemeChips() {
+    const list = meta.radar?.themes || [];
+    el.themeChips.replaceChildren(...list.map((t) => {
+      const b = node('button', { type: 'button', className: 'chip', textContent: `${t.icon} ${t.label}` });
+      b.setAttribute('aria-pressed', String(themes.has(t.id)));
+      b.addEventListener('click', () => { themes.has(t.id) ? themes.delete(t.id) : themes.add(t.id); b.setAttribute('aria-pressed', String(themes.has(t.id))); });
+      return b;
+    }));
+  }
+
+  const themeInfo = (id) => (meta.radar?.themes || []).find((t) => t.id === id);
+
+  // Sonuçtaki temaların sayıları: bir temaya tıklayınca liste o temaya süzülür.
+  function renderThemeCounts() {
+    const counts = data?.themeCounts;
+    const entries = counts ? Object.entries(counts).sort((a, b) => b[1] - a[1]) : [];
+    el.themeCounts.hidden = !entries.length;
+    el.themeCounts.replaceChildren(...entries.map(([id, n]) => {
+      const t = themeInfo(id);
+      const b = node('button', { type: 'button', className: 'chip', textContent: `${t ? `${t.icon} ${t.label}` : id} · ${n}` });
+      b.setAttribute('aria-pressed', String(activeTheme === id));
+      b.addEventListener('click', () => { activeTheme = activeTheme === id ? null : id; render(); });
+      return b;
     }));
   }
 
@@ -161,7 +198,7 @@
 
   function resetResults() {
     data = null;
-    el.timeline.hidden = el.toolbar.hidden = el.srcSummary.hidden = el.srcNotes.hidden = el.hiddenNote.hidden = el.lang.hidden = el.langNote.hidden = true;
+    el.timeline.hidden = el.toolbar.hidden = el.srcSummary.hidden = el.srcNotes.hidden = el.hiddenNote.hidden = el.lang.hidden = el.langNote.hidden = el.themeCounts.hidden = el.hideNote.hidden = true;
     el.list.replaceChildren();
     setStatus('');
   }
@@ -218,11 +255,12 @@
     const sources = checkedSources();
     if (!sources.length) return setStatus('En az bir haber kaynağı seç.', 'error');
     const all = sources.length === meta.sources.filter((x) => x.defaultOn !== false).length && sources.every((id) => meta.sources.find((x) => x.id === id)?.defaultOn !== false);
-    const searchLike = mode !== 'maarif';
+    const searchLike = mode === 'search' || mode === 'breaking';
     const world = !searchLike || isWorld();
     const ui = {
       mode, country: searchLike ? el.country.value : '', city: world ? '' : selectedCity(), topic: searchLike ? el.topic.value : 'general',
       range: el.range.value, q: el.keyword.value.trim(), sources: all ? '' : sources.join(','), hours: breaking ? el.hours.value : '',
+      themes: mode === 'radar' ? [...themes].join(',') : '',
       strict: !world && !el.strict.checked ? '0' : '', tstrict: searchLike && el.topic.value !== 'general' && !el.tstrict.checked ? '0' : '',
     };
     if (ui.range === 'custom') Object.assign(ui, range);
@@ -243,7 +281,7 @@
     if (!silent) {
       syncFields();
       setStatus(breaking ? 'Son dakika haberleri getiriliyor…' : 'Haberler getiriliyor…');
-      el.timeline.hidden = el.toolbar.hidden = el.srcSummary.hidden = el.srcNotes.hidden = el.hiddenNote.hidden = true;
+      el.timeline.hidden = el.toolbar.hidden = el.srcSummary.hidden = el.srcNotes.hidden = el.hiddenNote.hidden = el.themeCounts.hidden = el.hideNote.hidden = true;
       el.list.replaceChildren();
     }
     el.go.disabled = true;
@@ -251,13 +289,14 @@
     try {
       const params = new URLSearchParams({
         mode, country: ui.country || 'ALL', city: ui.city, topic: ui.topic, q: ui.q, sources: ui.sources, strict: ui.strict,
-        tstrict: ui.tstrict, hours: ui.hours, from: range.from, to: range.to,
+        tstrict: ui.tstrict, hours: ui.hours, themes: ui.themes, from: range.from, to: range.to,
       });
       const body = await fetchNews(params, mine.signal, (partial) => {
         if (silent || mine !== controller) return;
         // Ara sonuç: o ana kadar bitmiş kaynakların haberleri hemen gösterilir.
         data = partial;
         activeWindow = null;
+        activeTheme = null;
         view = 'original';
         render();
       });
@@ -266,7 +305,7 @@
       fresh = silent || seen.size ? new Set([...links].filter((l) => !seen.has(l))) : new Set();
       seen = links;
       data = body;
-      if (!silent) { activeWindow = null; translateRun++; if (view === 'tr') view = 'original'; }
+      if (!silent) { activeWindow = null; activeTheme = null; translateRun++; if (view === 'tr') view = 'original'; }
       render();
       if (breaking) el.lastUpdate.textContent = `· son güncelleme ${fmtClock.format(new Date())}`;
     } catch (err) {
@@ -300,7 +339,7 @@
     const note = failed ? ` ${failed} dönem alınamadı.` : '';
     const wait = data.partial ? ` ${data.pending} kaynak bekleniyor…` : '';
     const head = data.mode === 'breaking' ? `${data.total} haber · son ${data.hours} saat.${note}${wait}` : `${data.total} haber bulundu.${note}${wait}`;
-    const detail = data.mode === 'maarif' ? 'Türkiye Maarif Vakfı' : data.mode === 'breaking' ? '' : `Arama:`;
+    const detail = data.mode === 'maarif' ? 'Türkiye Maarif Vakfı' : data.mode === 'radar' ? 'Eğitim radarı' : data.mode === 'breaking' ? '' : `Arama:`;
     const what = [el.city.value && el.city.value !== CUSTOM_CITY ? el.city.value : el.cityCustom.value.trim(), el.topic.value !== 'general' ? el.topic.selectedOptions[0]?.textContent.trim() : '', el.keyword.value.trim()].filter(Boolean).join(' · ');
     setStatus(`${head} ${detail}`.trim(), failed ? 'error' : '', data.mode === 'search' ? what : '');
     renderSourceSummary();
@@ -309,22 +348,42 @@
     el.hiddenText.textContent = `${data.hidden} haber gizlendi (${[by.country && `${by.country} başka ülkeyi konu alıyor`, by.topic && `${by.topic} seçilen konuyla ilgisiz`].filter(Boolean).join(', ')}).`;
     renderPlaces();
     renderTimeline();
-    const hasSocial = data.items.some((i) => i.kind === 'social');
+    renderThemeCounts();
+    const hasSocial = data.items.some((i) => i.kind === 'social' || i.kind === 'factcheck');
     el.kind.hidden = !hasSocial;
     if (!hasSocial) el.kind.value = 'all';
+    renderTypeFilter();
 
     const q = el.filter.value.trim().toLocaleLowerCase('tr');
     let items = data.items.filter((it) =>
       (activeWindow === null || it.window === activeWindow) &&
       (el.kind.value === 'all' || it.kind === el.kind.value) &&
       (el.place.value === 'all' || (it.place || '') === el.place.value) &&
+      (el.stype.value === 'all' || it.sourceType?.types.includes(el.stype.value)) &&
+      (!activeTheme || it.themes?.includes(activeTheme)) &&
+      !isHidden(it) &&
       (!q || `${it.title} ${translations.get(it.title) || ''} ${it.source}`.toLocaleLowerCase('tr').includes(q)));
     if (el.sort.value === 'asc') items = items.slice().reverse();
     if (el.sort.value === 'sources') items = items.slice().sort((a, b) => weight(b) - weight(a));
 
+    const hiddenNow = data.items.filter(isHidden).length;
+    el.hideNote.hidden = !hiddenNow;
+    el.hideText.textContent = `${hiddenNow} haber bu tarayıcıda gizlendi.`;
     el.toolbar.hidden = data.total === 0;
     syncLang();
     el.list.replaceChildren(...(items.length ? renderGroups(items) : [emptyState(data.total)]));
+  }
+
+  const isHidden = (it) => hidden.links.includes(it.link) || (it.source && hidden.sources.includes(it.source));
+
+  // Yayıncı türü süzgeci: yalnızca sonuçta türü bilinen yayıncı varsa görünür.
+  function renderTypeFilter() {
+    const present = new Set(data.items.flatMap((i) => (i.kind === 'news' ? i.sourceType?.types || [] : [])));
+    const prev = el.stype.value;
+    el.stype.hidden = !present.size;
+    el.stype.replaceChildren(option('all', 'Tüm yayıncılar', true),
+      ...Object.entries(meta.sourceTypes || {}).filter(([id]) => present.has(id)).map(([id, t]) => option(id, t.label, false)));
+    el.stype.value = present.has(prev) ? prev : 'all';
   }
 
   function emptyState(total) {
@@ -385,20 +444,100 @@
     if (fresh.has(it.link)) badge('YENİ', 'new');
     if (it.kind === 'social') badge('Sosyal medya · doğrulanmamış', 'social');
     if (data.world && it.place) badge(it.place);
+    if (it.kind === 'factcheck') badge('Doğrulama kuruluşu', 'check', meta.sourceTypes?.factcheck?.note || '');
     if (it.source) m.append(node('span', { className: 'src', textContent: it.source }));
+    // Yayıncı türü bilgidir, güvenilirlik puanı değildir.
+    if (it.kind === 'news') {
+      for (const t of it.sourceType?.types || []) {
+        const info = meta.sourceTypes?.[t];
+        if (info) badge(info.label, 'stype', `${info.note} Bu bir güvenilirlik puanı değildir.`);
+      }
+    }
+    for (const id of it.themes || []) {
+      const t = themeInfo(id);
+      if (t) badge(`${t.icon} ${t.label}`, 'theme');
+    }
     if (it.published) {
       m.append(node('span', { textContent: data.mode === 'breaking' ? ago(it.published) : fmtTime.format(new Date(it.published)), title: fmtTime.format(new Date(it.published)) }));
     }
     const count = it.story?.count || 0;
-    if (count > 1) badge(`${count} kaynakta`, 'story', 'Aynı haberi yayınlayan bağımsız haber kaynağı sayısı');
-    else if (it.alsoIn?.length) badge(`+${it.alsoIn.length} kaynakta daha`, '', it.alsoIn.join(', '));
+    const brands = it.story?.brands || count;
+    if (count > 1) {
+      badge(brands < count ? `${count} kaynak · ${brands} farklı yayıncı` : `${count} kaynakta`, 'story', 'Aynı haberi yayınlayan bağımsız haber kaynağı sayısı');
+    } else if (it.alsoIn?.length) badge(`+${it.alsoIn.length} kaynakta daha`, '', it.alsoIn.join(', '));
     parts.push(m);
     // Aynı haberi veren diğer kaynaklar: karşılaştırmak için bağlantılar
     const others = [...new Map((it.story?.also || []).filter((a) => a.source !== it.source).map((a) => [a.source, a])).values()];
     if (others.length) {
       parts.push(node('div', { className: 'also' }, 'Aynı haber:', ...others.map((a) => node('a', { href: /^https?:\/\//i.test(a.link) ? a.link : '#', target: '_blank', rel: 'noopener noreferrer', textContent: a.source }))));
     }
+    // Çok kaynak, çok yayıncı demek değildir: ajans metni pek çok sitede aynen çıkar.
+    if (it.story?.agencies?.length) {
+      parts.push(node('div', { className: 'hint2', textContent: `Ajans içeriği olabilir: ${it.story.agencies.join(', ')}. Aynı ajans metni birçok sitede çıktığı için kaynak sayısı bağımsız teyit anlamına gelmeyebilir.` }));
+    }
+    // Doğrulama kuruluşlarının benzer başlıklı incelemeleri: hüküm değil, okunacak bağlantı.
+    if (it.factchecks?.length) {
+      parts.push(node('div', { className: 'also check' }, 'İlgili doğrulama incelemesi (hüküm değildir, eşleşme başlık benzerliğine dayanır):',
+        ...it.factchecks.map((f) => node('a', { href: /^https?:\/\//i.test(f.link) ? f.link : '#', target: '_blank', rel: 'noopener noreferrer', textContent: `${f.source} ↗`, title: f.title }))));
+    }
+    const result = node('div', { className: 'result', hidden: true });
+    parts.push(actions(it, result), result);
     return node('article', { className: `card${fresh.has(it.link) ? ' fresh' : ''}` }, ...parts);
+  }
+
+  // Karttaki yardımcı düğmeler: doğrulama ara, olayı özetle, alakasız/kaynağı gizle.
+  function actions(it, result) {
+    const bar = node('div', { className: 'acts' });
+    const act = (text, title, fn) => { const b = node('button', { type: 'button', className: 'act', textContent: text, title }); b.addEventListener('click', () => fn(b)); bar.append(b); };
+    const show = (...children) => { result.hidden = false; result.replaceChildren(...children); };
+    if (it.kind === 'news' && meta.factcheck?.available) {
+      act('🔍 Doğrulama ara', 'Doğrulama kuruluşlarının incelemelerinde bu başlığı ara', async (b) => {
+        b.disabled = true;
+        show(node('p', { textContent: 'Doğrulama kuruluşlarında aranıyor…' }));
+        try {
+          const res = await fetch(`/api/factcheck?${new URLSearchParams({ q: it.title, lang: it.lang || '' })}`);
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(body.error || `Arama başarısız (${res.status})`);
+          if (!body.results.length) return show(node('p', { textContent: 'İlgili bir doğrulama bulunamadı. Bu, haberin doğru olduğu anlamına gelmez; yalnızca taranan doğrulama kuruluşlarında benzer bir inceleme çıkmadı.' }));
+          show(node('p', { textContent: 'Benzer konuda bulunan doğrulama incelemeleri (haberle aynı iddiayı ele alıp almadığını kendin kontrol et):' }),
+            node('ul', {}, ...body.results.map((r) => node('li', {},
+              node('a', { href: /^https?:\/\//i.test(r.link) ? r.link : '#', target: '_blank', rel: 'noopener noreferrer', textContent: r.title || r.link }),
+              ` — ${r.source}${r.rating ? ` · değerlendirme: ${r.rating}` : ''}`))));
+        } catch (err) { show(node('p', { className: 'err', textContent: err.message })); } finally { b.disabled = false; }
+      });
+    }
+    const members = [{ source: it.source, title: it.title, snippet: it.snippet || '' },
+      ...[...new Map((it.story?.also || []).filter((a) => a.source !== it.source).map((a) => [a.source, a])).values()].map((a) => ({ source: a.source, title: a.title, snippet: a.snippet || '' }))].slice(0, 12);
+    if (meta.summary && members.length >= 2) {
+      act('📝 Olay özeti', 'Aynı olayı veren kaynakları karşılaştıran yapay zekâ özeti (yalnızca başlık ve kısa özetlere dayanır)', async (b) => {
+        b.disabled = true;
+        show(node('p', { textContent: 'Özet hazırlanıyor…' }));
+        try {
+          const res = await fetch('/api/summarize', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items: members }) });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(body.error || `Özet alınamadı (${res.status})`);
+          const section = (label, list) => (list?.length ? [node('h4', { textContent: label }), node('ul', {}, ...list.map((x) => node('li', { textContent: x })))] : []);
+          show(node('p', { className: 'sum', textContent: body.summary }), ...section('Kaynakların ortak söylediği', body.common),
+            ...section('Kaynaklar arasındaki farklar', body.differences), ...section('Dikkat', body.caveats),
+            node('p', { className: 'basis', textContent: `${body.basis || ''} Yapay zekâ ürünüdür, hata yapabilir; kaynakları kendin oku.` }));
+        } catch (err) { show(node('p', { className: 'err', textContent: err.message })); } finally { b.disabled = false; }
+      });
+    }
+    const hide = (what) => {
+      if (what === 'link' && !hidden.links.includes(it.link)) hidden.links.push(it.link);
+      if (what === 'source' && it.source && !hidden.sources.includes(it.source)) hidden.sources.push(it.source);
+      store.setHidden(hidden);
+      render();
+    };
+    act('🚫 Alakasız', 'Bu haber seçimle ilgili değil: bu tarayıcıda gizle ve geliştiriciye bildir', () => {
+      fetch('/api/feedback', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reason: 'offtopic', title: it.title, source: it.source || '', lang: it.lang || '', topic: el.topic.value, country: el.country.value, mode }),
+      }).catch(() => {});
+      hide('link');
+    });
+    if (it.source) act('Kaynağı gizle', `${it.source} yayıncısının haberlerini bu tarayıcıda gizle`, () => hide('source'));
+    return bar;
   }
 
   // Orijinal | Türkçe geçişi: yalnızca Türkçe olmayan başlık varsa görünür.
@@ -468,9 +607,12 @@
     fresh = new Set();
     controller?.abort();
     resetResults();
+    activeTheme = null;
+    // Radarda aynı haberi çok kaynakta görmek önemlidir: varsayılan sıralama "en çok kaynakta"
+    if (next === 'radar') el.sort.value = 'sources'; else if (el.sort.value === 'sources') el.sort.value = 'desc';
     syncFields();
     scheduleAuto();
-    if (run && (next === 'breaking' || next === 'maarif')) runSearch(); // bu sekmelerde varsayılanlarla hemen çalışır
+    if (run && (next === 'breaking' || next === 'maarif' || next === 'radar')) runSearch(); // bu sekmelerde varsayılanlarla hemen çalışır
     else writeUrl({ mode: next });
   }
 
@@ -501,7 +643,12 @@
     el.maarifNames.replaceChildren(...Object.entries(meta.maarif?.names || {}).map(([lang, names]) => node('li', {}, node('b', { textContent: lang }), names.join(' · '))));
 
     // Paylaşılan bağlantıda mod adreste gelir; kayıtlı mod yalnızca adres boşsa kullanılmaz (her açılış "Arama" ile başlar).
-    if (['breaking', 'maarif'].includes(q.mode)) mode = q.mode;
+    hidden = store.getHidden();
+    renderThemeChips();
+    el.stype.replaceChildren(option('all', 'Tüm yayıncılar', true));
+    if (saved.themes) saved.themes.split(',').forEach((id) => themeInfo(id) && themes.add(id));
+    if (['breaking', 'maarif', 'radar'].includes(q.mode)) mode = q.mode;
+    if (mode === 'radar') { el.sort.value = 'sources'; renderThemeChips(); }
     syncFields();
 
     el.country.addEventListener('change', () => { fillCities(''); syncFields(); });
@@ -512,6 +659,8 @@
     el.sort.addEventListener('change', render);
     el.place.addEventListener('change', render);
     el.kind.addEventListener('change', render);
+    el.stype.addEventListener('change', render);
+    el.undoHide.addEventListener('click', () => { hidden = { links: [], sources: [] }; store.setHidden(hidden); render(); });
     el.auto.addEventListener('change', scheduleAuto);
     el.showHidden.addEventListener('click', () => { el.strict.checked = false; el.tstrict.checked = false; runSearch(); });
     el.viewOriginal.addEventListener('click', () => setView('original'));
@@ -520,7 +669,7 @@
     el.form.addEventListener('submit', (e) => { e.preventDefault(); runSearch(); });
 
     scheduleAuto();
-    if (q.country || ['breaking', 'maarif'].includes(q.mode)) runSearch(); // paylaşılan bağlantı: otomatik ara
+    if (q.country || ['breaking', 'maarif', 'radar'].includes(q.mode)) runSearch(); // paylaşılan bağlantı: otomatik ara
   }
 
   init();

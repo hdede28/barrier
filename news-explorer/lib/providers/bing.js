@@ -2,6 +2,7 @@
 
 const { buildSearchQuery } = require('../query');
 const { namesFor, quoted } = require('../../data/maarif');
+const { clause } = require('../../data/radar');
 const { parseRss } = require('../rss');
 const { fetchText, daysAgo, inRange, langOf } = require('./common');
 
@@ -23,7 +24,9 @@ module.exports = {
     // Dünya aramasında pazar en-US, terimler İngilizce; ülke seçiliyken ülkenin pazarı.
     const q = ctx.mode === 'maarif'
       ? `(${quoted(namesFor(['en', 'tr', 'ar', 'fr']))})${ctx.keyword ? ` ${ctx.keyword}` : ''}`
-      : ctx.world ? buildSearchQuery({ ...ctx, country: { ...country, terms: ['en'] }, generalPerTopic: 1 }) : ctx.query;
+      : ctx.mode === 'radar'
+        ? buildSearchQuery({ country: { ...country, terms: ['en'] }, city: '', topic: 'education', keyword: [clause(ctx.themes, 'en'), ctx.keyword].filter(Boolean).join(' ') })
+        : ctx.world ? buildSearchQuery({ ...ctx, country: { ...country, terms: ['en'] }, generalPerTopic: 1 }) : ctx.query;
     url.searchParams.set('q', q);
     url.searchParams.set('format', 'rss');
     url.searchParams.set('setmkt', ctx.world ? 'en-US' : lang);

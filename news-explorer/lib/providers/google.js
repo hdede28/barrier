@@ -3,6 +3,7 @@
 const { dateOperators, buildSearchQuery } = require('../query');
 const { findCountry, WORLD_EDITION_CODES } = require('../../data/meta');
 const { EDITION_CODES: MAARIF_EDITIONS, namesFor, quoted } = require('../../data/maarif');
+const { EDITION_CODES: RADAR_EDITIONS, clause } = require('../../data/radar');
 const { parseRss } = require('../rss');
 const { fetchText, errorText, langOf } = require('./common');
 
@@ -30,6 +31,15 @@ function planJobs(ctx) {
     return MAARIF_EDITIONS.map(findCountry).flatMap((edition) => {
       const names = `(${quoted(namesFor(edition.terms))})${ctx.keyword ? ` ${ctx.keyword}` : ''}`;
       return ctx.windows.map((win, w) => ({ edition, query: names, win, w }));
+    });
+  }
+  if (ctx.mode === 'radar') {
+    // Eğitim radarı: Türkçe/İngilizce terimlerimiz olan sürümlerde "eğitim" terimleri + seçili temaların terimleri.
+    return RADAR_EDITIONS.map(findCountry).flatMap((edition) => {
+      const lang = edition.terms[0];
+      const themeClause = clause(ctx.themes, lang);
+      const query = buildSearchQuery({ country: edition, city: '', topic: 'education', keyword: [themeClause, ctx.keyword].filter(Boolean).join(' ') });
+      return ctx.windows.map((win, w) => ({ edition, query, win, w }));
     });
   }
   const editions = ctx.world ? WORLD_EDITION_CODES.map(findCountry) : [ctx.country];

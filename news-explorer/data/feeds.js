@@ -5,7 +5,7 @@
 //
 //   name       Haberin kaynağı olarak gösterilen ad
 //   url        RSS / RDF / Atom adresi
-//   kind       'news' (yayıncı) ya da 'social' (herkese açık sosyal medya hesabı)
+//   kind       'news' (yayıncı), 'social' (herkese açık sosyal medya hesabı) ya da 'factcheck' (doğrulama kuruluşu)
 //   lang       İsteğe bağlı. Akışın dili (çeviri için); verilmezse ülkenin dili, '*' akışlarda İngilizce
 //   topics     İsteğe bağlı. Konuya özel akış (ör. ['education']): yalnızca o konu seçiliyken ya da konu "Genel" iken kullanılır
 //   countries  ['TR', ...] yalnızca o ülkelerde gösterilir; '*' tüm ülkelerde, ama başlıkta ülke/şehir adı geçmesi gerekir
@@ -150,6 +150,21 @@ const FEEDS = [
   news('Yonhap', 'https://en.yna.co.kr/RSS/news.xml', ['KR'], { lang: 'en' }),
   news('Korea Times', 'https://www.koreatimes.co.kr/www/rss/rss.xml', ['KR'], { lang: 'en' }),
   news('CGTN', 'https://www.cgtn.com/subscribe/rss/section/world.xml', ['CN'], { lang: 'en' }),
+  // --- Eğitim odaklı akışlar (Eğitim radarı ve "Eğitim" konusu; adresler doğrulanmadı)
+  news('Edutopia', 'https://www.edutopia.org/rss.xml', ['*'], { topics: ['education'], lang: 'en' }),
+  news('eSchool News', 'https://www.eschoolnews.com/feed/', ['*'], { topics: ['education'], lang: 'en' }),
+  news('K-12 Dive', 'https://www.k12dive.com/feeds/news/', ['*'], { topics: ['education'], lang: 'en' }),
+  news('Education Dive', 'https://www.educationdive.com/feeds/news/', ['*'], { topics: ['education'], lang: 'en' }),
+  news('Higher Ed Dive', 'https://www.highereddive.com/feeds/news/', ['*'], { topics: ['education'], lang: 'en' }),
+  news('MindShift', 'https://www.kqed.org/mindshift/feed', ['*'], { topics: ['education'], lang: 'en' }),
+  news('Education Next', 'https://www.educationnext.org/feed/', ['*'], { topics: ['education'], lang: 'en' }),
+  news('Getting Smart', 'https://www.gettingsmart.com/feed/', ['*'], { topics: ['education'], lang: 'en' }),
+  news('OECD Education Today', 'https://oecdedutoday.com/feed/', ['*'], { topics: ['education'], lang: 'en' }),
+  news('Times Higher Education', 'https://www.timeshighereducation.com/rss.xml', ['*'], { topics: ['education'], lang: 'en' }),
+  news('Schools Week', 'https://schoolsweek.co.uk/feed/', ['GB'], { topics: ['education'], lang: 'en' }),
+  news('Habertürk Eğitim', 'https://www.haberturk.com/rss/egitim.xml', ['TR'], { topics: ['education'] }),
+  news('Sabah Eğitim', 'https://www.sabah.com.tr/rss/egitim.xml', ['TR'], { topics: ['education'] }),
+  news('Anadolu Eğitim', 'https://www.aa.com.tr/tr/rss/default?cat=egitim', ['TR'], { topics: ['education'] }),
   // --- Küresel (İngilizce): ülke adı başlıkta geçerse ilgili ülkede de gösterilir
   news('BBC News', 'https://feeds.bbci.co.uk/news/world/rss.xml', ['*']),
   news('Al Jazeera English', 'https://www.aljazeera.com/xml/rss/all.xml', ['*']),
@@ -170,6 +185,28 @@ const FEEDS = [
   news('The Verge', 'https://www.theverge.com/rss/index.xml', ['*'], { topics: ['technology'] }),
   news('Wired', 'https://www.wired.com/feed/rss', ['*'], { topics: ['technology'] }),
   news('TechCrunch', 'https://techcrunch.com/feed/', ['*'], { topics: ['technology'] }),
+];
+
+
+// Doğrulama (fact-check) kuruluşları: haberlerle eşleşen incelemeler "ilgili doğrulama" olarak gösterilir. kind: 'factcheck'.
+// Adresler doğrulanmadı; /api/diagnose?feeds=1 bozuk olanları gösterir.
+const check = (name, url, countries, extra = {}) => ({ name, url, kind: 'factcheck', countries, ...extra });
+const FACTCHECK_FEEDS = [
+  check('Teyit', 'https://teyit.org/feed', ['TR'], { lang: 'tr' }),
+  check('Malumatfuruş', 'https://www.malumatfurus.org/feed/', ['TR'], { lang: 'tr' }),
+  check('Doğruluk Payı', 'https://www.dogrulukpayi.com/rss', ['TR'], { lang: 'tr' }),
+  check('Snopes', 'https://www.snopes.com/feed/', ['*'], { lang: 'en' }),
+  check('PolitiFact', 'https://www.politifact.com/rss/all/', ['*'], { lang: 'en' }),
+  check('FactCheck.org', 'https://www.factcheck.org/feed/', ['*'], { lang: 'en' }),
+  check('Full Fact', 'https://fullfact.org/feed/all/', ['*'], { lang: 'en' }),
+  check('AFP Fact Check', 'https://factcheck.afp.com/rss.xml', ['*'], { lang: 'en' }),
+  check('Africa Check', 'https://africacheck.org/feed', ['*'], { lang: 'en' }),
+  check('Lead Stories', 'https://leadstories.com/atom.xml', ['*'], { lang: 'en' }),
+  check('EUvsDisinfo', 'https://euvsdisinfo.eu/feed/', ['*'], { lang: 'en' }),
+  check('Maldita', 'https://maldita.es/feed/', ['*'], { lang: 'es' }),
+  check('Newtral', 'https://www.newtral.es/feed/', ['*'], { lang: 'es' }),
+  check('Les Décodeurs', 'https://www.lemonde.fr/les-decodeurs/rss_full.xml', ['*'], { lang: 'fr' }),
+  check('Correctiv', 'https://correctiv.org/faktencheck/feed/', ['*'], { lang: 'de' }),
 ];
 
 // Reddit ülke toplulukları (ülke seçiliyken o toplulukta aranır; dünya aramasında tüm Reddit'te).
@@ -269,9 +306,9 @@ function loadFeeds(env = process.env) {
   if (env.EXTRA_FEEDS) {
     try { extra = JSON.parse(env.EXTRA_FEEDS); } catch { console.error('EXTRA_FEEDS geçerli JSON değil, yok sayıldı.'); }
   }
-  const valid = (f) => f && typeof f.name === 'string' && /^https?:\/\//i.test(f.url) && ['news', 'social'].includes(f.kind) &&
+  const valid = (f) => f && typeof f.name === 'string' && /^https?:\/\//i.test(f.url) && ['news', 'social', 'factcheck'].includes(f.kind) &&
     Array.isArray(f.countries) && f.countries.length && (f.topics === undefined || Array.isArray(f.topics));
-  return [...FEEDS, ...(Array.isArray(extra) ? extra : [])].filter(valid);
+  return [...FEEDS, ...FACTCHECK_FEEDS, ...(Array.isArray(extra) ? extra : [])].filter(valid);
 }
 
-module.exports = { FEEDS, COUNTRY_ALIASES, OTHER_PLACES, SUBREDDITS, loadFeeds };
+module.exports = { FEEDS, FACTCHECK_FEEDS, COUNTRY_ALIASES, OTHER_PLACES, SUBREDDITS, loadFeeds };

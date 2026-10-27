@@ -41,7 +41,7 @@ const mastodon = {
   skip(ctx, { now }) {
     if (ctx.mode === 'breaking') return 'Son dakika modunda kullanılmaz';
     if (ctx.windows.at(-1).to < daysAgo(now, 30)) return 'Mastodon yalnızca güncel gönderileri kapsar';
-    if (ctx.mode === 'maarif') return null;
+    if (ctx.mode === 'maarif' || ctx.mode === 'radar') return null;
     const { topic, city, words } = searchTerms(ctx);
     return topic.length + city.length + words.length ? null : 'Konu, şehir ya da kelime gerekli';
   },
@@ -51,6 +51,8 @@ const mastodon = {
     // Maarif modunda vakfın bilinen etiketleri.
     const tags = ctx.mode === 'maarif'
       ? ['maarif', 'maariffoundation', 'turkiyemaarifvakfi', 'turkishmaariffoundation', 'maarifvakfi']
+      : ctx.mode === 'radar'
+        ? ['edtech', 'aied', 'education', 'teachers', 'schoolleadership', 'egitim']
       : [...new Set([...city, ...words, ...topic.slice(0, 4)].map(toTag).map((t) => t.toLowerCase()).filter((t) => t.length >= 3 && t.length <= 30))].slice(0, 6);
     if (!tags.length) return { items: [] };
     const hosts = (bases.mastodon || 'https://mastodon.social,https://journa.host,https://mastodon.world,https://mstdn.social,https://mastodon.online').split(',');
@@ -80,7 +82,7 @@ const reddit = {
   available: true,
   defaultOn: false, // Reddit bulut sunucularını (429) sistematik olarak engeller; istenirse elle açılır
   skip(ctx) {
-    if (ctx.mode === 'breaking') return 'Son dakika modunda kullanılmaz';
+    if (ctx.mode === 'breaking' || ctx.mode === 'radar') return 'Bu modda kullanılmaz';
     const { topic, city, words } = searchTerms(ctx);
     return ctx.mode !== 'maarif' && ctx.world && !topic.length && !city.length && !words.length ? 'Konu ya da kelime gerekli' : null;
   },
@@ -120,7 +122,7 @@ const hn = {
   kind: 'social',
   available: true,
   skip(ctx) {
-    if (ctx.mode === 'breaking' || ctx.mode === 'maarif') return 'Bu modda kullanılmaz';
+    if (ctx.mode === 'breaking' || ctx.mode === 'maarif' || ctx.mode === 'radar') return 'Bu modda kullanılmaz';
     const relevant = ctx.world || ['technology', 'science'].includes(ctx.topic) || ctx.keyword;
     return relevant ? null : 'Yalnızca teknoloji/bilim konularında ve kelime aramalarında';
   },

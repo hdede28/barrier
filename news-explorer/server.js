@@ -10,6 +10,11 @@ const { createProviders, describe } = require('./lib/providers');
 const { loadFeeds } = require('./data/feeds');
 const { diagnose, formatText } = require('./lib/diagnose');
 const { NAMES: MAARIF_NAMES } = require('./data/maarif');
+const { TYPES: SOURCE_TYPES } = require('./data/source-types');
+const { THEMES } = require('./data/radar');
+const { createFactChecker } = require('./lib/factcheck');
+const { summarizerFromEnv } = require('./lib/summarize');
+const { createFeedbackStore } = require('./lib/feedback');
 const { translatorFromEnv, translationResponse } = require('./lib/translators');
 
 // Tanımsız ortam değişkenlerini at, varsayılanlar devreye girsin.
@@ -17,6 +22,9 @@ const cleanBases = (b) => Object.fromEntries(Object.entries(b).filter(([, v]) =>
 
 // Hangi sürümün yayında olduğunu görmek için (Render commit numarasını verir).
 const VERSION = (process.env.APP_VERSION || process.env.RENDER_GIT_COMMIT || require('./package.json').version).slice(0, 7);
+
+// Hız sınırı için istemci adresi (kayıt altına alınmaz). Render gibi bir vekilin arkasında ilk X-Forwarded-For değeri.
+const clientIp = (req) => String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
@@ -37,10 +45,14 @@ function createServer({
   feeds = loadFeeds(),
   translator = translatorFromEnv(),
   timing,
+  factChecker,
+  summarizer = summarizerFromEnv(),
+  feedback = createFeedbackStore({ file: process.env.FEEDBACK_FILE, adminToken: process.env.ADMIN_TOKEN }),
   breakingTtl = process.env.BREAKING_CACHE_SECONDS === undefined ? 60 : Number(process.env.BREAKING_CACHE_SECONDS),
   providers = createProviders({ feeds, disabled: (process.env.DISABLED_SOURCES || '').split(',').map((x) => x.trim()).filter(Boolean) }),
 } = {}) {
   const cache = createMemoryCache();
+  const checker = factChecker || createFactChecker({ providers, apiKey: process.env.FACTCHECK_API_KEY });
   const handleNews = (url, extra = {}) => getNews(url.searchParams, { newsBase, bases: cleanBases(bases), cache, providers, timing, breakingTtl, ...extra });
 
   // Akışlı yanıt (NDJSON): kaynaklar bittikçe ara sonuç ("partial"), sonunda "final". Yavaş bir kaynak, hızlı olanların sonuçlarını bekletmez.
@@ -108,8 +120,15 @@ function createServer({
     try {
       const url = new URL(req.url, 'http://localhost');
       if (req.method === 'POST' && url.pathname === '/api/translate') return sendJson(res, 200, await handleTranslate(req));
+      if (req.method === 'POST' && url.pathname === '/api/summarize') {
+        if (!summarizer) throw new HttpError(503, 'Özet bu sunucuda kapalı (ANTHROPIC_API_KEY gerekir).');
+        return sendJson(res, 200, await summarizer.summarize((await readJson(req))?.items));
+      }
+      if (req.method === 'POST' && url.pathname === '/api/feedback') return sendJson(res, 200, feedback.add(await readJson(req), clientIp(req)));
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Yalnızca GET desteklenir.' });
-      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, world: WORLD, stream: true, maarif: { names: MAARIF_NAMES }, version: VERSION, sources: describe(providers), translation: translator?.provider || false });
+      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, world: WORLD, stream: true, summary: Boolean(summarizer), factcheck: { available: checker.available, api: checker.hasApi }, sourceTypes: SOURCE_TYPES, radar: { themes: THEMES.map(({ id, icon, label }) => ({ id, icon, label })) }, maarif: { names: MAARIF_NAMES }, version: VERSION, sources: describe(providers), translation: translator?.provider || false });
+      if (url.pathname === '/api/factcheck') return sendJson(res, 200, await checker.lookup(url.searchParams.get('q'), (url.searchParams.get('lang') || '').slice(0, 5)));
+      if (url.pathname === '/api/feedback') return sendJson(res, 200, feedback.report(url.searchParams.get('token')));
       if (url.pathname === '/api/diagnose') {
         const report = await diagnose({ providers, feeds, bases: cleanBases(bases), withFeeds: url.searchParams.get('feeds') === '1', version: VERSION });
         if (url.searchParams.get('json') === '1') return sendJson(res, 200, report);

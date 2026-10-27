@@ -23,6 +23,7 @@ function createProviders({ feeds = [], disabled = [] } = {}) {
     { ...bing, available: true },
     createFeedProvider({ kind: 'news', feeds }),
     createFeedProvider({ kind: 'social', feeds }),
+    createFeedProvider({ kind: 'factcheck', feeds }),
     mastodon,
     reddit,
     hn,

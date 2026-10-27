@@ -2,6 +2,7 @@
 
 const { buildSearchQuery } = require('../query');
 const { COMPACT, quoted } = require('../../data/maarif');
+const { clause } = require('../../data/radar');
 const { COUNTRIES } = require('../../data/meta');
 const { COUNTRY_ALIASES } = require('../../data/feeds');
 const { fetchText, errorText, daysAgo, langFromName, langOf, sleep } = require('./common');
@@ -96,7 +97,9 @@ module.exports = {
     const latin = (c) => c.split('/').map((n) => n.trim()).flatMap((n) => { const f = n.normalize('NFD').replace(/\p{M}/gu, '').replace(/ı/g, 'i').replace(/İ/g, 'I'); return f === n ? [n] : [n, f]; }).join(' / ');
     const text = ctx.mode === 'maarif'
       ? `(${quoted(COMPACT)})${ctx.keyword ? ` ${ctx.keyword}` : ''}`
-      : buildSearchQuery({ ...ctx, country, city: ctx.city ? latin(ctx.city) : '', minTermLength: 3, generalPerTopic: 1 });
+      : ctx.mode === 'radar'
+        ? buildSearchQuery({ country, city: '', topic: 'education', keyword: [clause(ctx.themes, 'en'), ctx.keyword].filter(Boolean).join(' '), minTermLength: 3 })
+        : buildSearchQuery({ ...ctx, country, city: ctx.city ? latin(ctx.city) : '', minTermLength: 3, generalPerTopic: 1 });
     const url = new URL('/api/v2/doc/doc', bases.gdelt);
     url.searchParams.set('query', ctx.world ? text : `${text} sourcecountry:${ctx.country.fips}`);
     url.searchParams.set('mode', 'artlist');

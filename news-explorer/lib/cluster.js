@@ -1,6 +1,7 @@
 'use strict';
 
 const { norm } = require('./providers/common');
+const { classifySource, brandOf } = require('../data/source-types');
 
 const STOP = new Set(['the', 'and', 'for', 'with', 'from', 'that', 'this', 'after', 'will', 'over', 'into', 'about', 'has', 'have', 'are', 'was', 'were',
   'not', 'but', 'new', 'says', 'said', 'video', 'live', 'son', 'dakika', 'canli', 'ile', 'icin', 'bir', 'bu', 'olarak', 'daha', 'der', 'die', 'das', 'und', 'les', 'des', 'une', 'pour']);
@@ -48,17 +49,25 @@ function clusterStories(items) {
   });
 
   return clusters.map(({ rep, members }) => {
-    const news = new Set(members.filter((m) => m.kind === 'news').map((m) => m.source || m.provider));
+    const newsMembers = members.filter((m) => m.kind === 'news');
+    const news = new Set(newsMembers.map((m) => m.source || m.provider));
+    // Aynı yayıncı ailesi (BBC News + BBC Türkçe) tek yayıncı sayılır; ajans içeriği aynı metnin yeniden yayını olabilir.
+    const brands = new Set(newsMembers.map((m) => brandOf(m.source || m.provider)));
+    const agencies = [...new Set(newsMembers.filter((m) => classifySource(m.source)?.types.includes('agency')).map((m) => brandOf(m.source)))];
     const dates = members.map((m) => m.published).filter(Boolean).sort();
-    const others = members.filter((m) => m !== rep);
+    const others = members.filter((m) => m !== rep && m.kind !== 'factcheck');
+    const checks = members.filter((m) => m.kind === 'factcheck' && m !== rep);
     return {
       ...rep,
+      ...(checks.length && { factchecks: checks.slice(0, 3).map((m) => ({ source: m.source, link: m.link, title: m.title })) }),
       story: {
         count: Math.max(1, news.size),
+        brands: Math.max(1, brands.size),
+        agencies,
         social: members.filter((m) => m.kind === 'social').length,
         first: dates[0] || null,
         last: dates.at(-1) || null,
-        also: others.slice(0, 8).map((m) => ({ source: m.source || m.provider, link: m.link })),
+        also: others.slice(0, 8).map((m) => ({ source: m.source || m.provider, link: m.link, title: m.title, snippet: m.snippet || '' })),
       },
     };
   });

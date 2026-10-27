@@ -3,8 +3,9 @@
 const { HttpError, parseSearchParams } = require('./query');
 const { createProviders, selectProviders, DEFAULT_BASES } = require('./providers');
 const { errorText, withDeadline } = require('./providers/common');
-const { foreignFocus, offTopic } = require('./relevance');
-const { clusterStories } = require('./cluster');
+const { foreignFocus, offTopic, themesOf } = require('./relevance');
+const { clusterStories, tokens } = require('./cluster');
+const { classifySource } = require('../data/source-types');
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 300;
@@ -23,6 +24,26 @@ function canonLink(link) {
     return `${u.hostname}${u.pathname.replace(/\/+$/, '')}${u.search}`;
   } catch {
     return link;
+  }
+}
+
+// Doğrulama kuruluşlarının incelemelerini, başlığı benzeyen haberlere "ilgili doğrulama" olarak bağlar.
+// Bu bir hüküm değildir: eşleşme başlık benzerliğine dayanır ve yanlış eşleşebilir, bu yüzden kullanıcıya bağlantı olarak sunulur.
+function linkFactChecks(items) {
+  const checks = items.filter((it) => it.kind === 'factcheck');
+  if (!checks.length) return;
+  const checkTokens = checks.map((c) => tokens(c.title));
+  for (const it of items) {
+    if (it.kind !== 'news') continue;
+    const t = tokens(it.title);
+    if (t.size < 3) continue;
+    const found = [];
+    checks.forEach((c, i) => {
+      let shared = 0;
+      for (const x of t) if (checkTokens[i].has(x)) shared++;
+      if (shared >= 3 && shared / Math.min(t.size, checkTokens[i].size) >= 0.5) found.push({ source: c.source, link: c.link, title: c.title });
+    });
+    if (found.length) it.factchecks = found.slice(0, 3);
   }
 }
 
@@ -73,6 +94,11 @@ function buildBody(ctx, providers, runs, partial) {
       items.push(item);
     }
   }
+  for (const it of items) {
+    const c = it.kind === 'factcheck' ? { types: ['factcheck'] } : classifySource(it.source);
+    if (c) it.sourceType = c;
+  }
+  linkFactChecks(items);
   // Süzgeçler: (1) ülke seçiliyken başlığı başka bir ülkeyi/bölgeyi konu alan, (2) konu seçiliyken başlığı o konuyla ilgisiz haberler.
   const hiddenBy = { country: 0, topic: 0 };
   const own = ctx.city ? ctx.city.split('/').map((c) => c.trim()).filter(Boolean) : [];
@@ -85,8 +111,19 @@ function buildBody(ctx, providers, runs, partial) {
     return true;
   });
   const hidden = hiddenBy.country + hiddenBy.topic;
+  // Eğitim radarı: her habere hangi temalara girdiği eklenir; tema seçildiyse yalnızca o temalara girenler kalır.
+  let themed = passed;
+  const themeCounts = {};
+  if (ctx.mode === 'radar') {
+    themed = [];
+    for (const it of passed) {
+      it.themes = themesOf(it.title);
+      if (!ctx.themes.length || it.themes.some((t) => ctx.themes.includes(t))) themed.push(it);
+    }
+    for (const it of themed) for (const t of it.themes) themeCounts[t] = (themeCounts[t] || 0) + 1;
+  }
   // Benzer başlıklı haberler tek habere toplanır (kaç bağımsız kaynakta çıktığı story.count'ta). Sıra: en son güncellenen önce.
-  const visible = ctx.cluster ? clusterStories(passed) : passed;
+  const visible = ctx.cluster ? clusterStories(themed) : themed;
   const recency = (it) => it.story?.last || it.published || '';
   visible.sort((a, b) => recency(b).localeCompare(recency(a)));
 
@@ -106,6 +143,7 @@ function buildBody(ctx, providers, runs, partial) {
     hours: ctx.hours || null,
     generatedAt: new Date().toISOString(),
     world: ctx.world,
+    themeCounts: ctx.mode === 'radar' ? themeCounts : undefined,
     partial,
     pending: runs.filter((r) => !r).length,
     items: visible,
@@ -145,7 +183,7 @@ async function getNews(searchParams, { newsBase, bases = {}, cache, providers = 
 
   // Son dakika önbelleği kısa tutulur (varsayılan 60 sn); 0 = önbellek yok
   const bucket = ctx.mode === 'breaking' ? (breakingTtl > 0 ? Math.floor(Date.now() / (breakingTtl * 1000)) : Math.random()) : '';
-  const key = `${ctx.mode}|${ctx.hours}|${bucket}|${ctx.country.code}|${ctx.topic}|${ctx.city}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}|${ctx.strict}|${ctx.topicStrict}|${ctx.cluster}`;
+  const key = `${ctx.mode}|${ctx.hours}|${bucket}|${ctx.country.code}|${ctx.topic}|${ctx.city}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}|${ctx.strict}|${ctx.topicStrict}|${ctx.cluster}|${ctx.themes.join('+')}`;
   const hit = await cache?.get(key);
   if (hit) return { ...hit, cached: true };
 

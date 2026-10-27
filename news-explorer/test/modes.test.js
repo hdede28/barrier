@@ -177,3 +177,46 @@ test('yeni ülkeler: 65 ülke, komşular dahil; sorgu ülkenin dilinde; yer adla
   assert.equal(foreignFocus('Kyiv under attack overnight', findCountry('UA')), false);
   assert.equal(foreignFocus("Ukrayna'da savaş sürüyor", findCountry('TR')), true);
 });
+
+test('eğitim radarı: dünya geneli, konu hep eğitim; temalar Türkçe/İngilizce sürümlerde sorguya girer', async () => {
+  const s = await start({ perRequest: 4 });
+  const r = await s.get({ mode: 'radar', themes: 'ai,teachers', from: day(-29), to: day(0), sources: 'google,bing,gdelt,mastodon,reddit,hn' });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.mode, 'radar');
+  const g = s.mock.requests.filter((x) => x.path === '/rss/search');
+  assert.equal(g.length, 6, '6 sürüm (TR, ABD, İngiltere, Avustralya, Kanada, Hindistan) x 1 pencere');
+  const byGl = Object.fromEntries(g.map((x) => [x.gl, x.q]));
+  assert.match(byGl.TR, /^\(eğitim OR okul OR üniversite OR öğretmen\) \("yapay zeka" OR "yapay zekâ" OR ChatGPT/);
+  assert.match(byGl.US, /^\(education OR school OR university OR teachers\) \("artificial intelligence" OR "generative AI" OR ChatGPT/);
+  assert.match(byGl.GB, /"teacher training"/);
+  const gd = s.mock.requests.find((x) => x.path === '/api/v2/doc/doc');
+  assert.ok(!/sourcecountry/.test(gd.q) && /artificial intelligence/.test(gd.q));
+  assert.match(s.mock.requests.find((x) => x.path === '/news/search').q, /education/);
+  assert.ok(s.mock.requests.some((x) => x.path === '/tags/edtech.rss'));
+  const by = Object.fromEntries(r.body.sources.map((x) => [x.id, x]));
+  assert.match(by.reddit.skipped, /kullanılmaz/);
+  assert.match(by.hn.skipped, /kullanılmaz/);
+  s.stop();
+});
+
+test('eğitim radarı: temalar atanır, seçili temaya girmeyenler elenir, tema sayıları döner, konuya özel akış güvenilir sayılır', async () => {
+  const { getNews } = require('../lib/news');
+  const mk = (title, link, extra = {}) => ({ title, link, source: 'X' + link.length, lang: 'en', published: new Date().toISOString(), ...extra });
+  const provider = { id: 'a', label: 'A', kind: 'news', available: true, skip: () => null, fetch: async () => ({ items: [
+    mk('How principals are using AI in schools this term', 'https://a/1'),
+    mk('Teacher shortage worsens across the country, schools say', 'https://a/22'),
+    mk('PISA results show falling math scores for students', 'https://a/333'),
+    mk('Local football club signs new striker', 'https://a/4444'),
+    mk('Classroom practice notes for the week', 'https://a/55555', { topicTrusted: true }),
+  ] }) };
+  const base = { mode: 'radar', from: day(-5), to: day(0) };
+  const all = await getNews(new URLSearchParams(base), { providers: [provider] });
+  assert.ok(!all.items.some((i) => /football/.test(i.title)), 'spor haberi eğitim konu süzgecinde elenir');
+  assert.equal(all.themeCounts.ai, 1);
+  assert.equal(all.themeCounts.teachers, 1);
+  assert.equal(all.themeCounts.assessment, 1);
+  assert.deepEqual(all.items.find((i) => /principals/.test(i.title)).themes.sort(), ['ai', 'leadership']);
+  const only = await getNews(new URLSearchParams({ ...base, themes: 'teachers' }), { providers: [provider] });
+  assert.deepEqual(only.items.map((i) => i.link), ['https://a/22']);
+  assert.equal(only.items[0].story.count, 1, 'radar kümeleme açık');
+});

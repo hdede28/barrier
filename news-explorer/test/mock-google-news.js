@@ -85,6 +85,19 @@ function createMockGoogleNews({ perRequest = 40, fail = false, gdeltFail = false
       ]));
     }
 
+    if (url.pathname === '/feeds/factcheck.xml') {
+      log(url, {});
+      const it = (h, title, n) => `<item><title>${esc(title)}</title><link>https://teyit.org/${n}</link><pubDate>${hoursAgo(h).toUTCString()}</pubDate></item>`;
+      res.writeHead(200, { 'content-type': 'application/rss+xml' });
+      return res.end(rss([it(5, 'İddia: okul servislerinde yeni denetim dönemi başlıyor', 0), it(6, 'Başka bir konuda alakasız doğrulama yazısı burada', 1)]));
+    }
+
+    if (url.pathname === '/v1alpha1/claims:search') {
+      log(url, { key: url.searchParams.get('key') });
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ claims: [{ text: 'Okul servisleri iddiası', claimant: 'Biri', claimReview: [{ publisher: { name: 'Teyit Google', site: 'teyit.org' }, url: 'https://teyit.org/google-1', title: 'Okul servisi iddiası', textualRating: 'Yanlış', reviewDate: '2026-10-01' }] }] }));
+    }
+
     if (url.pathname === '/feeds/slow.xml') {
       log(url, {});
       const it = (h, title, n) => `<item><title>${esc(title)}</title><link>https://slow.example/${n}</link><pubDate>${hoursAgo(h).toUTCString()}</pubDate></item>`;

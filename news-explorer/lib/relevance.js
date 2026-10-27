@@ -2,6 +2,7 @@
 
 const { COUNTRIES, TOPICS, TOPIC_TERMS } = require('../data/meta');
 const { EXTRA } = require('../data/lexicon');
+const { THEMES } = require('../data/radar');
 const { COUNTRY_ALIASES, OTHER_PLACES } = require('../data/feeds');
 const { norm, containsTerm } = require('./providers/common');
 
@@ -80,4 +81,10 @@ function offTopic(title, topic, lang) {
   return TOPIC_IDS.some((id) => id !== topic && scoreText(text, id, lang) > mine);
 }
 
-module.exports = { foreignFocus, mentions, namesOf, topicScore, offTopic };
+// Eğitim radarı: bir başlık hangi temalara giriyor? (Türkçe ve İngilizce terimlerle; kısa terimler sözcük sınırıyla aranır.)
+function themesOf(title) {
+  const text = norm(title);
+  return THEMES.filter((t) => [...t.en, ...t.tr].some((term) => containsTerm(text, term))).map((t) => t.id);
+}
+
+module.exports = { foreignFocus, mentions, namesOf, topicScore, offTopic, themesOf };

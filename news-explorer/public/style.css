@@ -119,3 +119,31 @@ label.check small { color: var(--muted); font-weight: 400; }
 .src-summary li.pending { color: var(--muted); border-style: dashed; animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .src-summary li.pending { animation: none; } }
+
+/* Doğruluk ve eğitim yöneticisi araçları */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips.counts { margin-top: 12px; }
+.chip { background: var(--panel); color: var(--ink); border: 1px solid var(--line); padding: 5px 12px; border-radius: 999px; font-size: .84rem; font-weight: 600; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+fieldset.themes { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; margin: 0; min-width: 0; }
+fieldset.themes legend { padding: 0 6px; font-size: .85rem; color: var(--muted); font-weight: 600; }
+fieldset.themes legend small { font-weight: 400; }
+fieldset.themes .hint { margin: 8px 0 0; }
+.badge.stype { background: var(--panel); border: 1px solid var(--line); color: var(--muted); font-weight: 600; }
+.badge.check { background: #dcfce7; color: #14532d; }
+.badge.theme { background: var(--accent-soft); font-weight: 600; }
+@media (prefers-color-scheme: dark) { .badge.check { background: #14532d; color: #dcfce7; } }
+.hint2 { margin-top: 6px; font-size: .78rem; color: var(--warn); }
+.also.check { color: var(--ink); }
+.acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.act { background: none; color: var(--muted); border: 1px solid var(--line); padding: 3px 10px; font-size: .76rem; font-weight: 600; border-radius: 999px; }
+.act:hover { color: var(--ink); border-color: var(--accent); }
+.result { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); font-size: .86rem; }
+.result[hidden] { display: none; }
+.result p { margin: 0 0 6px; }
+.result h4 { margin: 8px 0 2px; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.result ul { margin: 0; padding-left: 18px; }
+.result .sum { font-weight: 600; }
+.result .basis { margin: 8px 0 0; font-size: .76rem; color: var(--muted); }
+.result .err { color: var(--warn); }
+#themeCounts[hidden], #hideNote[hidden] { display: none; }

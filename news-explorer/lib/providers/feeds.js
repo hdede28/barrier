@@ -4,6 +4,8 @@ const { termsFor, findCountry } = require('../../data/meta');
 const { parseFeed } = require('../rss');
 const { mentions, namesOf } = require('../relevance');
 const { mentionsMaarif } = require('../../data/maarif');
+const { tokens } = require('../cluster');
+const { THEMES } = require('../../data/radar');
 const { fetchText, errorText, daysAgo, inRange, norm, containsTerm, langOf } = require('./common');
 
 // Aynı sunucuya (ör. 9 YouTube akışı) aynı anda en fazla 3 istek: aksi halde 429/404 ile geri çevrilirler.
@@ -40,6 +42,8 @@ function createMatcher(ctx) {
   const words = ctx.keyword.split(/\s+/).filter((w) => w && !/^(OR|AND)$/i.test(w));
   const cities = ctx.city ? cityNames(ctx.city) : [];
   const aliases = ctx.world ? [] : namesOf(ctx.country);
+  // Eğitim radarı: seçili temaların terimleri (Türkçe+İngilizce) başlıkta/özette geçmeli
+  const themeTerms = ctx.themes?.length ? ctx.themes.flatMap((id) => { const t = THEMES.find((x) => x.id === id); return t ? [...t.en, ...t.tr] : []; }) : [];
   const termCache = new Map();
   // Konu terimleri akışın dilinde (ve küresel akışlarda ayrıca İngilizce) aranır.
   const termsOf = (feed) => {
@@ -64,6 +68,7 @@ function createMatcher(ctx) {
       // Sözlüğü olmayan dildeki akışta konuya göre karar verilemez: konu seçiliyken atlanır.
       if (!terms.length || !terms.some((t) => containsTerm(text, t))) return false;
     }
+    if (themeTerms.length && !themeTerms.some((t) => containsTerm(text, t))) return false;
     return words.every((w) => text.includes(norm(w)));
   };
 }
@@ -107,11 +112,25 @@ function createFeedProvider({ kind, feeds, ttl = FEED_TTL_MS }) {
   }
 
   return {
-    id: kind === 'news' ? 'feeds' : 'social',
-    label: kind === 'news' ? 'Yayıncı akışları' : 'Sosyal medya hesapları',
+    id: { news: 'feeds', social: 'social', factcheck: 'factcheck' }[kind],
+    label: { news: 'Yayıncı akışları', social: 'Sosyal medya hesapları', factcheck: 'Doğrulama kuruluşları' }[kind],
     kind,
     available: mine.length > 0,
     deadline: 16000,
+    // Doğrulama kuruluşları için: bir başlığa benzeyen incelemeleri (önbellekteki akışlardan) bulur.
+    async lookup(query, max = 5) {
+      const q = tokens(query);
+      if (q.size < 2) return [];
+      const all = await Promise.all(mine.map((f) => load(f).then((items) => items.map((it) => ({ ...it, source: f.name }))).catch(() => [])));
+      return all.flat().map((it) => {
+        const t = tokens(it.title);
+        let shared = 0;
+        for (const x of q) if (t.has(x)) shared++;
+        return { it, shared, score: shared / Math.min(q.size, t.size || 1) };
+      }).filter(({ shared, score }) => shared >= 3 || (shared >= 2 && shared / q.size >= 0.5 && score >= 0.5))
+        .sort((a, b) => b.score - a.score || b.shared - a.shared).slice(0, max)
+        .map(({ it }) => ({ source: it.source, title: it.title, link: it.link, published: it.published, via: 'rss' }));
+    },
     // Sunucu açılırken akışları arka planda ısıtır: ilk aramalar bellekten anında yanıt alır.
     async warm(concurrency = 4) {
       let next = 0;
@@ -121,6 +140,7 @@ function createFeedProvider({ kind, feeds, ttl = FEED_TTL_MS }) {
     },
     skip(ctx, { now }) {
       if (ctx.mode === 'breaking' && kind === 'social') return 'Son dakika modunda kullanılmaz';
+      if (kind === 'factcheck' && ctx.mode === 'maarif') return null;
       if (!ctx.world && !mine.some((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code))) return 'Bu ülke için tanımlı akış yok';
       return ctx.windows.at(-1).to < daysAgo(now, MAX_AGE_DAYS) ? 'Akışlar yalnızca güncel haberleri kapsar' : null;
     },
@@ -144,7 +164,7 @@ function createFeedProvider({ kind, feeds, ttl = FEED_TTL_MS }) {
             const items = (await load(feed))
               .filter((it) => inRange(it.published, from, to, now) && match(it, feed))
               .map(({ summary, ...it }) => ({
-                ...it, source: feed.name, sourceUrl: new URL(feed.url).origin,
+                ...it, snippet: summary.slice(0, 240), source: feed.name, sourceUrl: new URL(feed.url).origin,
                 lang: feedLang(feed), country: feedCountry(feed)?.code || '', place: feedCountry(feed)?.name || '',
                 ...(ctx.topic !== 'general' && feed.topics?.includes(ctx.topic) && { topicTrusted: true }),
               }));

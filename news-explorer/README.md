@@ -81,6 +81,20 @@ Notlar:
 - Google Haberler'e giden istekler Cloudflare'in IP'lerinden yapılır; Google bazen bu IP'lere kısıtlama uygulayabilir.
   Sık hata görürsen sonuçların altındaki kaynak özetine bak; hatalı kaynağı kapatabilir ya da başka bir kaynak ekleyebilirsin (bkz. Genişletme).
 
+## Doğruluk araçları
+
+Hiçbir araç bir haberin doğru ya da yanlış olduğunu **hükmetmez**; okuyucuya karşılaştırma ve kontrol imkânı verir.
+
+- **Yayıncı türü etiketi:** kaynak adı bilinen bir ajans (Reuters, AP, AFP, AA…), kamu yayıncısı (BBC, DW, NHK, TRT…), devlete ait/finansmanlı yayın (RT, CGTN, VOA…), resmî kurum (BM, WHO, UNESCO, MEB…) ya da doğrulama kuruluşuysa kartta etiketlenir. Liste `data/source-types.js`. Bu bir **güvenilirlik puanı değildir**; bilinmeyen yayıncıya etiket verilmez.
+- **"N kaynak · K farklı yayıncı":** aynı yayıncı ailesi (BBC News + BBC Türkçe) ve aynı ajans metni tek sayılır; "Ajans içeriği olabilir" notu çıkar.
+- **Doğrulama kuruluşları:** Teyit, Malumatfuruş, Doğruluk Payı, Snopes, PolitiFact, FactCheck.org, Full Fact, AFP Fact Check, Maldita, Correctiv vb. RSS'leri "Doğrulama" kaynağı olarak taranır; başlığı benzeyen haberlere "İlgili doğrulama incelemesi" bağlantısı eklenir. Karttaki **Doğrulama ara** düğmesi (`GET /api/factcheck?q=`) bu akışlarda ve isteğe bağlı olarak Google Fact Check Tools API'de arar. API için `FACTCHECK_API_KEY` tanımla; anahtarsız RSS araması çalışır.
+- **Olay özeti:** ≥2 kaynaklı haberde **Olay özeti** düğmesi, kaynakların ortak söylediğini ve farklarını Türkçe özetler (`POST /api/summarize`). Yalnızca başlık ve kısa özetlere dayanır, haber metni okunmaz. `ANTHROPIC_API_KEY` gerekir (yoksa düğme görünmez); `SUMMARY_MODEL`, `SUMMARY_DAILY_LIMIT` (varsayılan 150) ile ayarlanır.
+- **Alakasız / Kaynağı gizle:** haberi ya da yayıncıyı yalnızca o tarayıcıda gizler ("Geri al" ile döner). "Alakasız" ayrıca `POST /api/feedback` ile kaydedilir (`FEEDBACK_FILE`, kapatmak için `off`). Kayıtları `GET /api/feedback?token=…` gösterir; `ADMIN_TOKEN` tanımlı değilse bu adres 404 verir. Kaynak süzgeçlerini iyileştirmek için kullan.
+
+## Eğitim radarı
+
+Okul müdürleri ve eğitim yöneticileri için **🧭 Eğitim radarı** sekmesi: dünyanın eğitim haberlerini 6 yayın sürümünde (TR, ABD, İngiltere, Avustralya, Kanada, Hindistan), eğitim odaklı RSS akışlarında (Edutopia, K-12 Dive, MindShift, Schools Week, OECD…) ve Mastodon etiketlerinde tarar. Başlıklar 13 temaya ayrılır: yapay zekâ, ölçme-değerlendirme, öğretmen gelişimi, okul liderliği, öğrenci refahı, dijital dönüşüm, müfredat, okul öncesi, mesleki eğitim, kapsayıcı eğitim, okul güvenliği, yükseköğretim, eğitim politikası. Temaları çip olarak seçebilir ya da sonuçtaki tema sayılarına tıklayarak süzebilirsin; varsayılan sıralama "en çok kaynakta yer alan"dır. Temalar ve terimleri `data/radar.js` içinde. Not: Cloudflare Worker sürümü akış (streaming) ve `POST /api/summarize|feedback`, `/api/factcheck` uç noktalarını desteklemez; bu özellikler için Node/Render sürümünü kullan.
+
 ## Son dakika
 
 Üstteki **🔴 Son dakika** sekmesi seçilen ülkenin ya da **tüm dünyanın** son 1 / 3 / 6 / 24 saatteki haberlerini gösterir.

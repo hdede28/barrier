@@ -15,7 +15,7 @@
   <header class="hero">
     <div class="wrap">
       <h1><img class="logo" src="logo.jpg" width="780" height="420" alt="HD Haber"></h1>
-      <p>Ülke, şehir ve konuya göre güncel ve geçmiş haberler. Son dakika ve Türkiye Maarif Vakfı bölümleri.</p>
+      <p>Ülke, şehir ve konuya göre güncel ve geçmiş haberler. Son dakika, Türkiye Maarif Vakfı ve eğitim yöneticileri için Eğitim radarı bölümleri.</p>
     </div>
   </header>
 
@@ -24,6 +24,7 @@
       <button type="button" data-mode="search" aria-pressed="true">🔎 Arama</button>
       <button type="button" data-mode="breaking" aria-pressed="false">🔴 Son dakika</button>
       <button type="button" data-mode="maarif" aria-pressed="false">🎓 Maarif Vakfı</button>
+      <button type="button" data-mode="radar" aria-pressed="false">🧭 Eğitim radarı</button>
     </nav>
     <form id="search" class="panel" autocomplete="off">
       <div class="grid">
@@ -39,7 +40,7 @@
         <label data-modes="search breaking">Konu
           <select id="topic" name="topic"></select>
         </label>
-        <label data-modes="search maarif">Dönem
+        <label data-modes="search maarif radar">Dönem
           <select id="range" name="range">
             <option value="2">Bugün ve dün</option>
             <option value="7">Son 7 gün</option>
@@ -49,10 +50,10 @@
             <option value="custom">Özel aralık…</option>
           </select>
         </label>
-        <label class="custom-date" data-modes="search maarif" hidden>Başlangıç
+        <label class="custom-date" data-modes="search maarif radar" hidden>Başlangıç
           <input id="from" type="date" min="2000-01-01">
         </label>
-        <label class="custom-date" data-modes="search maarif" hidden>Bitiş
+        <label class="custom-date" data-modes="search maarif radar" hidden>Bitiş
           <input id="to" type="date" min="2000-01-01">
         </label>
         <label data-modes="breaking" id="hoursWrap" hidden>Süre
@@ -70,6 +71,11 @@
           <input id="auto" type="checkbox" checked>
           <span>Otomatik yenile (90 saniyede bir) <small id="lastUpdate"></small></span>
         </label>
+        <fieldset class="wide themes" id="themeBox" data-modes="radar" hidden>
+          <legend>Temalar <small>(boş bırakırsan hepsi)</small></legend>
+          <div id="themeChips" class="chips"></div>
+          <p class="hint">Eğitim yöneticileri için izleme listesi: dünyanın eğitim haberleri 6 yayın sürümünde (TR, ABD, İngiltere, Avustralya, Kanada, Hindistan) ve eğitim yayınlarında taranır; başlıklar temalara ayrılır.</p>
+        </fieldset>
         <details class="wide maarif-box" id="maarifBox" data-modes="maarif" hidden>
           <summary>Türkiye Maarif Vakfı: aranan adlar</summary>
           <p class="hint">Vakfın adı bütün bu dillerde ve yazımlarda aranır; ilgisiz kurumlar (ör. Endonezya'daki "Ma'arif NU") elenir.</p>
@@ -114,10 +120,14 @@
           <button type="button" id="viewTr" aria-pressed="false">Türkçe</button>
         </div>
         <select id="place" aria-label="Ülke" hidden></select>
-        <select id="kind" aria-label="Kaynak türü" hidden>
+        <select id="kind" aria-label="İçerik türü" hidden>
           <option value="all">Tüm türler</option>
           <option value="news">Haber siteleri</option>
           <option value="social">Sosyal medya</option>
+          <option value="factcheck">Doğrulama kuruluşları</option>
+        </select>
+        <select id="stype" aria-label="Yayıncı türü" hidden>
+          <option value="all">Tüm yayıncılar</option>
         </select>
         <input id="filter" type="search" placeholder="Sonuçlarda ara (başlık veya kaynak)" aria-label="Sonuçlarda ara">
         <select id="sort" aria-label="Sıralama">
@@ -126,6 +136,8 @@
           <option value="sources">En çok kaynakta yer alan</option>
         </select>
       </div>
+      <div id="themeCounts" class="chips counts" hidden></div>
+      <p id="hideNote" class="note info" hidden><span id="hideText"></span> <button type="button" id="undoHide" class="linkbtn">Geri al</button></p>
       <p id="langNote" class="note" role="note" hidden></p>
       <div id="list"></div>
     </section>

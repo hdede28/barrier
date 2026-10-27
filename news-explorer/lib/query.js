@@ -1,6 +1,7 @@
 'use strict';
 
 const { findCountry, findTopic, termsFor, generalTerms, WORLD, WORLD_EDITION_CODES } = require('../data/meta');
+const { validIds } = require('../data/radar');
 
 const DAY = 86400000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -90,7 +91,7 @@ const dateOperators = (w) => `after:${w.from} before:${fmt(addDays(parseDate(w.t
 
 const WORLD_MAX_WINDOWS = 3; // her yayın sürümü ayrı sorgulandığı için dünya aramasında pencere sayısı sınırlı
 const MAARIF_MAX_WINDOWS = 2;
-const MODES = ['search', 'breaking', 'maarif'];
+const MODES = ['search', 'breaking', 'maarif', 'radar'];
 const BREAKING_HOURS = [1, 3, 6, 24];
 
 // mode: 'search' (arama), 'breaking' (son dakika: son N saat), 'maarif' (Türkiye Maarif Vakfı: tüm dünya, vakfın adları)
@@ -98,10 +99,11 @@ function parseSearchParams(params, now = new Date()) {
   const mode = MODES.includes(params.get('mode')) ? params.get('mode') : 'search';
   const maarif = mode === 'maarif';
   const breaking = mode === 'breaking';
-  const world = maarif || params.get('country') === WORLD.code;
+  const radar = mode === 'radar'; // eğitim radarı: dünya geneli, konu hep eğitim, isteğe bağlı temalar
+  const world = maarif || radar || params.get('country') === WORLD.code;
   const country = world ? { ...WORLD, hl: 'en', terms: ['en'], cities: [], world: true } : findCountry(params.get('country'));
   if (!country) throw new HttpError(400, 'Geçersiz ülke.');
-  const topic = maarif ? 'general' : params.get('topic') || 'general';
+  const topic = maarif ? 'general' : radar ? 'education' : params.get('topic') || 'general';
   if (!findTopic(topic)) throw new HttpError(400, 'Geçersiz konu.');
   const city = world ? '' : cleanText(params.get('city'));
   const keyword = cleanText(params.get('q'), 120);
@@ -114,6 +116,7 @@ function parseSearchParams(params, now = new Date()) {
   } else {
     windows = planWindows(params.get('from'), params.get('to'), now, maarif ? MAARIF_MAX_WINDOWS : world ? WORLD_MAX_WINDOWS : MAX_WINDOWS);
   }
+  const themes = radar ? validIds((params.get('themes') || '').split(',').map((x) => x.trim())) : [];
   const sources = (params.get('sources') || '').split(',').map((x) => x.trim()).filter(Boolean);
   // strict (varsayılan açık): başka ülkeleri konu alan başlıklar gizlenir. Dünya aramasında anlamsız.
   const strict = !world && params.get('strict') !== '0';
@@ -121,7 +124,7 @@ function parseSearchParams(params, now = new Date()) {
   const topicStrict = topic !== 'general' && params.get('tstrict') !== '0';
   // cluster: benzer başlıklı haberler tek haberde toplanır, kaç bağımsız kaynakta çıktığı sayılır (son dakika ve Maarif'te hep).
   const cluster = mode !== 'search' || params.get('cluster') === '1';
-  const ctx = { mode, country, topic, city, keyword, windows, sources, world, strict, topicStrict, cluster, hours, sinceMs: breaking ? now.getTime() - hours * 3600000 : 0 };
+  const ctx = { mode, country, topic, city, keyword, windows, sources, world, strict, topicStrict, cluster, hours, themes, sinceMs: breaking ? now.getTime() - hours * 3600000 : 0 };
   ctx.query = world ? (keyword || '') : buildSearchQuery(ctx);
   return ctx;
 }
