@@ -60,7 +60,8 @@ function createServer({ newsBase = process.env.GOOGLE_NEWS_BASE || 'https://news
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 3000;
-  const host = process.env.HOST || '127.0.0.1';
+  // Barındırma servisleri PORT tanımlar ve dışarıdan erişim ister; yerelde yalnızca localhost.
+  const host = process.env.HOST || (process.env.PORT ? '0.0.0.0' : '127.0.0.1');
   createServer().listen(port, host, () => console.log(`Haber Atlası: http://${host}:${port}`));
 }
 

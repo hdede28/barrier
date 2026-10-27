@@ -11,6 +11,15 @@ npm test             # sahte haber kaynağıyla uçtan uca testler
 
 `PORT` ve `HOST` ortam değişkenleriyle adres değiştirilebilir (varsayılan: `127.0.0.1:3000`).
 
+## Yayına alma: en kolay yol (Render, terminal gerekmez)
+
+1. [render.com](https://render.com) hesabı aç, **New → Web Service**, GitHub'ı bağla ve bu depoyu seç.
+2. Ayarlar: **Branch** `claude/news-explorer` (ya da birleştirdiğin dal), **Root Directory** `news-explorer`,
+   **Runtime** Node, **Build Command** boş, **Start Command** `node server.js`, **Instance Type** Free.
+3. **Deploy**'a bas. Birkaç dakika sonra `https://<ad>.onrender.com` adresi hazır olur.
+
+Ücretsiz serviste 15 dakika kullanılmazsa uygulama uyur, ilk açılış yaklaşık bir dakika sürer.
+
 ## Yayına alma (Cloudflare Workers)
 
 Aynı kod Cloudflare Workers üzerinde de çalışır: `public/` statik dosya olarak, `/api/*` ise `worker.mjs` ile sunulur.
