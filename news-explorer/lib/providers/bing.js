@@ -14,7 +14,10 @@ module.exports = {
   deadline: 10000,
   label: 'Bing Haberler',
   kind: 'news',
-  skip: (ctx, { now }) => (ctx.windows.at(-1).to < daysAgo(now, 30) ? 'Bing yalnızca son 30 günü kapsar' : null),
+  skip: (ctx, { now }) => {
+    if (ctx.mode === 'balkan' && ctx.world) return 'Birden çok ülke seçiliyken kullanılmaz (tek ülke seç)';
+    return ctx.windows.at(-1).to < daysAgo(now, 30) ? 'Bing yalnızca son 30 günü kapsar' : null;
+  },
   async fetch(ctx, { bases, now }) {
     const from = ctx.windows[0].from;
     const to = ctx.windows.at(-1).to;

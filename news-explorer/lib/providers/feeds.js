@@ -6,6 +6,7 @@ const { mentions, namesOf } = require('../relevance');
 const { mentionsMaarif } = require('../../data/maarif');
 const { tokens } = require('../cluster');
 const { THEMES } = require('../../data/radar');
+const { allTerms } = require('../../data/balkan');
 const { fetchText, errorText, daysAgo, inRange, norm, containsTerm, langOf } = require('./common');
 
 // Aynı sunucuya (ör. 9 YouTube akışı) aynı anda en fazla 3 istek: aksi halde 429/404 ile geri çevrilirler.
@@ -43,7 +44,11 @@ function createMatcher(ctx) {
   const cities = ctx.city ? cityNames(ctx.city) : [];
   const aliases = ctx.world ? [] : namesOf(ctx.country);
   // Eğitim radarı: seçili temaların terimleri (Türkçe+İngilizce) başlıkta/özette geçmeli
-  const themeTerms = ctx.themes?.length ? ctx.themes.flatMap((id) => { const t = THEMES.find((x) => x.id === id); return t ? [...t.en, ...t.tr] : []; }) : [];
+  // Balkanlar: seçili başlıkların terimleri bölgedeki tüm dillerde aranır.
+  const themeTerms = !ctx.themes?.length ? [] : ctx.mode === 'balkan' ? allTerms(ctx.themes)
+    : ctx.themes.flatMap((id) => { const t = THEMES.find((x) => x.id === id); return t ? [...t.en, ...t.tr] : []; });
+  // Balkanlar (çok ülke): ülkeye özel olmayan akışlarda başlıkta seçili ülkelerden biri geçmeli
+  const regionAliases = ctx.region && ctx.world ? ctx.region.flatMap((c) => namesOf(findCountry(c))) : null;
   const termCache = new Map();
   // Konu terimleri akışın dilinde (ve küresel akışlarda ayrıca İngilizce) aranır.
   const termsOf = (feed) => {
@@ -57,6 +62,7 @@ function createMatcher(ctx) {
   return (it, feed) => {
     if (ctx.mode === 'maarif') return mentionsMaarif(`${it.title} ${it.summary}`) && words.every((w) => norm(`${it.title} ${it.summary}`).includes(norm(w)));
     const text = norm(`${it.title} ${it.summary}`);
+    if (regionAliases && feed.countries.includes('*') && !regionAliases.some((a) => mentions(it.title, norm(it.title), a))) return false;
     if (!ctx.world) {
       const cityHit = cities.some((c) => containsTerm(text, c));
       if (ctx.city && !cityHit) return false;
@@ -141,11 +147,13 @@ function createFeedProvider({ kind, feeds, ttl = FEED_TTL_MS }) {
     skip(ctx, { now }) {
       if (ctx.mode === 'breaking' && kind === 'social') return 'Son dakika modunda kullanılmaz';
       if (kind === 'factcheck' && ctx.mode === 'maarif') return null;
-      if (!ctx.world && !mine.some((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code))) return 'Bu ülke için tanımlı akış yok';
+      if (ctx.region && !mine.some((f) => f.countries.some((c) => c === '*' || ctx.region.includes(c)))) return 'Bu ülkeler için tanımlı akış yok';
+      if (!ctx.region && !ctx.world && !mine.some((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code))) return 'Bu ülke için tanımlı akış yok';
       return ctx.windows.at(-1).to < daysAgo(now, MAX_AGE_DAYS) ? 'Akışlar yalnızca güncel haberleri kapsar' : null;
     },
     async fetch(ctx, { now }) {
-      const forCountry = ctx.world ? mine : mine.filter((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code));
+      const forCountry = ctx.region ? mine.filter((f) => f.countries.some((c) => c === '*' || ctx.region.includes(c)))
+        : ctx.world ? mine : mine.filter((f) => f.countries.includes('*') || f.countries.includes(ctx.country.code));
       // Konuya özel akışlar yalnızca o konuda (ya da "Genel"de) kullanılır.
       const applicable = forCountry.filter((f) => ctx.mode === 'maarif' || !f.topics || ctx.topic === 'general' || f.topics.includes(ctx.topic));
       if (!applicable.length) return { items: [], note: 'Bu konu için tanımlı akış yok' };

@@ -95,6 +95,17 @@ Hiçbir araç bir haberin doğru ya da yanlış olduğunu **hükmetmez**; okuyuc
 
 Okul müdürleri ve eğitim yöneticileri için **🧭 Eğitim radarı** sekmesi: dünyanın eğitim haberlerini 6 yayın sürümünde (TR, ABD, İngiltere, Avustralya, Kanada, Hindistan), eğitim odaklı RSS akışlarında (Edutopia, K-12 Dive, MindShift, Schools Week, OECD…) ve Mastodon etiketlerinde tarar. Başlıklar 13 temaya ayrılır: yapay zekâ, ölçme-değerlendirme, öğretmen gelişimi, okul liderliği, öğrenci refahı, dijital dönüşüm, müfredat, okul öncesi, mesleki eğitim, kapsayıcı eğitim, okul güvenliği, yükseköğretim, eğitim politikası. Temaları çip olarak seçebilir ya da sonuçtaki tema sayılarına tıklayarak süzebilirsin; varsayılan sıralama "en çok kaynakta yer alan"dır. Temalar ve terimleri `data/radar.js` içinde. Not: Cloudflare Worker sürümü akış (streaming) ve `POST /api/summarize|feedback`, `/api/factcheck` uç noktalarını desteklemez; bu özellikler için Node/Render sürümünü kullan.
 
+## Balkanlar
+
+**🏔️ Balkanlar** sekmesi, bölge ülkelerinin haberlerini ayrıntılı izlemek içindir (varsayılan odak: Arnavutluk ★).
+
+- **Ülkeler:** Arnavutluk, Kosova, Kuzey Makedonya, Karadağ, Sırbistan, Bosna-Hersek, Hırvatistan, Yunanistan, Bulgaristan, Romanya. Çip olarak çoklu seçilir. Tek ülke seçilince şehir listesi açılır (Arnavutluk: Tiranë, Durrës, Vlorë, Shkodër, Korçë, Sarandë, Gjirokastër, Berat…) ve arama o ülkenin aramasına dönüşür (Bing, GDELT, Reddit de çalışır). Birden çok ülkede her ülke kendi Google Haberler sürümünde, kendi dilinde aranır.
+- **Hazır seçimler:** "Arnavutluk gündemi", "Arnavutluk'ta yaşam" (oturum/emlak, turizm, afet, adalet), "Türkiye ilişkileri", "Tüm Balkanlar".
+- **Başlıklar (11):** siyaset, AB yolu, bölgesel ilişkiler, ekonomi, yaşam (oturma izni, emlak, kira, ehliyet, vize), Türkiye ilişkileri, adalet/yolsuzlukla mücadele, hava-deprem-afet, turizm-ulaşım, eğitim-burs, spor. Terimler Arnavutça, Sırpça-Hırvatça-Boşnakça, Makedonca, Bulgarca, Romence, Yunanca, İngilizce ve Türkçe yazılıdır (`data/balkan.js`; terim eklemek için dosyayı düzenle). Seçili başlıklar Google sorgusuna ülkenin dilinde girer, RSS akışlarında ve sonuçlarda tüm dillerle süzülür; her habere başlıkları etiket olarak eklenir ve sonuçta başlık sayıları çıkar.
+- **Türkiye basını:** "Türkiye basınında da ara" açıkken Türkçe Google Haberler'de, AA ve TRT Haber dünya akışlarında seçili ülkeleri anan haberler ayrı "Türkiye basını" grubunda görünür.
+- **Ülke ataması:** Birden çok ülkeyi kapsayan akışlarda (Balkan Insight vb.) haberin ülkesi başlıktan bulunur; seçili bölge dışındaki bölge ülkelerini konu alan haberler gizlenir ("N haber gizlendi"). Sonuçta ülkelere göre sayı çipleri vardır.
+- **Akışlar:** 40'a yakın Balkan yayıncısı eklendi (Arnavutluk: Top Channel, Euronews Albania, Panorama, Gazeta Shqiptare, Monitor, Politiko, Exit News, Tirana Times…). Adresler canlıda doğrulanmadı: yayında `/api/diagnose?feeds=1` ile bakıp bozuk olanları `data/feeds.js`'den çıkar. Çeviri düğmesi Arnavutça başlıkları Türkçeye çevirir.
+
 ## Son dakika
 
 Üstteki **🔴 Son dakika** sekmesi seçilen ülkenin ya da **tüm dünyanın** son 1 / 3 / 6 / 24 saatteki haberlerini gösterir.

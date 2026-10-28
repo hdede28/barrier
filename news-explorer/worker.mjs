@@ -10,6 +10,7 @@ import { diagnose, formatText } from './lib/diagnose.js';
 import { NAMES as MAARIF_NAMES } from './data/maarif.js';
 import { TYPES as SOURCE_TYPES } from './data/source-types.js';
 import { THEMES } from './data/radar.js';
+import * as BALKAN from './data/balkan.js';
 
 const memory = createMemoryCache();
 
@@ -55,7 +56,7 @@ export default {
       }
       if (request.method !== 'GET') return json({ error: 'Yalnızca GET desteklenir.' }, 405);
       if (url.pathname === '/api/meta') {
-        return json({ countries: COUNTRIES, topics: TOPICS, world: WORLD, sourceTypes: SOURCE_TYPES, radar: { themes: THEMES.map(({ id, icon, label }) => ({ id, icon, label })) }, maarif: { names: MAARIF_NAMES }, version: env.APP_VERSION || 'worker', sources: describe(getProviders(env)), translation: getTranslator(env)?.provider || false }, 200, { 'cache-control': 'public, max-age=300' });
+        return json({ countries: COUNTRIES, topics: TOPICS, world: WORLD, sourceTypes: SOURCE_TYPES, radar: { themes: THEMES.map(({ id, icon, label }) => ({ id, icon, label })) }, balkan: { countries: BALKAN.COUNTRY_CODES, focus: BALKAN.FOCUS, lenses: BALKAN.LENSES.map(({ id, icon, label }) => ({ id, icon, label })) }, maarif: { names: MAARIF_NAMES }, version: env.APP_VERSION || 'worker', sources: describe(getProviders(env)), translation: getTranslator(env)?.provider || false }, 200, { 'cache-control': 'public, max-age=300' });
       }
       if (url.pathname === '/api/diagnose') {
         const report = await diagnose({ providers: getProviders(env), feeds: loadFeeds(env), bases: baseUrls(env), withFeeds: url.searchParams.get('feeds') === '1', version: env.APP_VERSION || 'worker' });

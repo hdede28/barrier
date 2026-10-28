@@ -12,12 +12,14 @@
     hiddenText: $('hiddenText'), showHidden: $('showHidden'), sourceBoxes: $('sourceBoxes'), srcSummary: $('srcSummary'),
     themeBox: $('themeBox'), themeChips: $('themeChips'), themeCounts: $('themeCounts'), stype: $('stype'), hideNote: $('hideNote'),
     hideText: $('hideText'), undoHide: $('undoHide'),
+    balkanBox: $('balkanBox'), balkanChips: $('balkanChips'), balkanPresets: $('balkanPresets'), balkanCity: $('balkanCity'),
+    balkanCityWrap: $('balkanCityWrap'), trpress: $('trpress'), lensChips: $('lensChips'), placeChips: $('placeChips'),
     status: $('status'), timeline: $('timeline'), toolbar: $('toolbar'), filter: $('filter'), sort: $('sort'), list: $('list'),
   };
   const CUSTOM_CITY = '__custom';
   const AUTO_REFRESH_MS = 90000;
   const SEARCH_TIMEOUT_MS = 60000; // bu süre dolarsa beklemeyi bırakır, o ana kadar gelenleri korur
-  const GO_LABEL = { search: 'Haberleri getir', breaking: 'Son dakikayı getir', maarif: 'Maarif haberlerini getir', radar: 'Eğitim radarını getir' };
+  const GO_LABEL = { search: 'Haberleri getir', breaking: 'Son dakikayı getir', maarif: 'Maarif haberlerini getir', radar: 'Eğitim radarını getir', balkan: 'Balkan haberlerini getir' };
   const fmtMonth = new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' });
   const fmtMonthShort = new Intl.DateTimeFormat('tr-TR', { month: 'short', year: '2-digit' });
   const fmtDay = new Intl.DateTimeFormat('tr-TR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -26,7 +28,7 @@
   const rtf = new Intl.RelativeTimeFormat('tr', { numeric: 'auto' });
 
   let meta;
-  let mode = 'search'; // 'search' | 'breaking' | 'maarif' | 'radar'
+  let mode = 'search'; // 'search' | 'breaking' | 'maarif' | 'radar' | 'balkan'
   let data = null;
   let activeWindow = null;
   let controller = null;
@@ -39,6 +41,8 @@
   const translations = new Map(); // orijinal başlık -> Türkçe
   let translateRun = 0;
   const themes = new Set(); // radar: seçili tema kimlikleri
+  const balkanSel = new Set(); // Balkanlar: seçili ülke kodları
+  const lenses = new Set(); // Balkanlar: seçili başlık kimlikleri
   let activeTheme = null; // radar: sonuçları süzmek için tıklanan tema
   let hidden = { links: [], sources: [] }; // kullanıcının bu tarayıcıda gizlediği haberler/kaynaklar
 
@@ -63,13 +67,14 @@
     document.querySelectorAll('[data-modes]').forEach((n) => { n.hidden = !n.dataset.modes.split(' ').includes(mode); });
     const searchLike = mode === 'search' || mode === 'breaking';
     const world = searchLike && isWorld();
+    if (mode === 'balkan') renderBalkanCity();
     el.countryNote.hidden = !searchLike || world || !meta.countries.find((c) => c.code === el.country.value)?.approximate;
     el.worldNote.hidden = !world;
     el.city.closest('label').hidden = !searchLike || world;
     el.cityCustomWrap.hidden = !searchLike || world || el.city.value !== CUSTOM_CITY;
     el.strictWrap.hidden = !searchLike || world;
     el.topicStrictWrap.hidden = !searchLike || el.topic.value === 'general';
-    el.strictWrap.hidden = el.strictWrap.hidden || mode === 'radar';
+    el.strictWrap.hidden = mode === 'balkan' ? balkanSel.size !== 1 : el.strictWrap.hidden || mode === 'radar';
     const custom = el.range.value === 'custom' && mode !== 'breaking';
     document.querySelectorAll('.custom-date').forEach((n) => { n.hidden = !custom; });
     el.go.textContent = loading ? 'Getiriliyor…' : GO_LABEL[mode];
@@ -99,7 +104,75 @@
     }));
   }
 
-  const themeInfo = (id) => (meta.radar?.themes || []).find((t) => t.id === id);
+  // Eğitim radarı temaları ya da Balkan başlıkları: sonuçların moduna göre
+  const themeInfo = (id) => (((data?.mode || mode) === 'balkan' ? meta.balkan?.lenses : meta.radar?.themes) || []).find((t) => t.id === id);
+
+  const toggleChips = (container, list, set, onChange) => {
+    container.replaceChildren(...list.map((t) => {
+      const b = node('button', { type: 'button', className: 'chip', textContent: `${t.icon || ''} ${t.label}`.trim() });
+      b.setAttribute('aria-pressed', String(set.has(t.id)));
+      b.addEventListener('click', () => { set.has(t.id) ? set.delete(t.id) : set.add(t.id); b.setAttribute('aria-pressed', String(set.has(t.id))); onChange?.(); });
+      return b;
+    }));
+  };
+
+  const balkanCountries = () => (meta.balkan?.countries || []).map((code) => meta.countries.find((c) => c.code === code)).filter(Boolean);
+  const PRESETS = [
+    { label: '🇦🇱 Arnavutluk gündemi', countries: ['AL'], lenses: [] },
+    { label: '🏠 Arnavutluk\'ta yaşam', countries: ['AL'], lenses: ['life', 'tourism', 'disaster', 'justice'] },
+    { label: '🇹🇷 Türkiye ilişkileri', countries: [], lenses: ['turkey'] },
+    { label: '🌍 Tüm Balkanlar', countries: [], lenses: [] },
+  ];
+
+  // Balkanlar: ülke çipleri (çoklu seçim), hazır seçimler ve (tek ülke seçiliyse) şehir listesi
+  function renderBalkan() {
+    const list = balkanCountries();
+    const focus = meta.balkan?.focus;
+    el.balkanChips.replaceChildren(...list.map((c) => {
+      const b = node('button', { type: 'button', className: 'chip', textContent: `${c.flag} ${c.name}${c.code === focus ? ' ★' : ''}` });
+      b.setAttribute('aria-pressed', String(balkanSel.has(c.code)));
+      b.title = c.code === focus ? 'Odak ülke' : '';
+      b.addEventListener('click', () => { balkanSel.has(c.code) ? balkanSel.delete(c.code) : balkanSel.add(c.code); renderBalkan(); syncFields(); });
+      return b;
+    }));
+    el.balkanPresets.replaceChildren(...PRESETS.map((p) => {
+      const b = node('button', { type: 'button', className: 'chip preset', textContent: p.label });
+      b.addEventListener('click', () => {
+        balkanSel.clear(); (p.countries.length ? p.countries : meta.balkan.countries).forEach((c) => balkanSel.add(c));
+        lenses.clear(); p.lenses.forEach((id) => lenses.add(id));
+        renderBalkan(); renderLensChips(); syncFields();
+      });
+      return b;
+    }));
+    renderBalkanCity();
+  }
+
+  function renderLensChips() {
+    toggleChips(el.lensChips, meta.balkan?.lenses || [], lenses);
+  }
+
+  function renderBalkanCity() {
+    const only = balkanSel.size === 1 ? meta.countries.find((c) => c.code === [...balkanSel][0]) : null;
+    el.balkanCityWrap.hidden = !only;
+    if (!only) return;
+    if (el.balkanCity.dataset.country === only.code) return;
+    el.balkanCity.dataset.country = only.code;
+    el.balkanCity.replaceChildren(option('', 'Tüm ülke', true), ...only.cities.map((n) => option(n, n, false)));
+  }
+
+  // Balkanlar sonuçlarında ülkelere göre sayılar: bir ülkeye tıklayınca liste o ülkeye süzülür.
+  function renderPlaceChips() {
+    const counts = new Map();
+    if (data?.mode === 'balkan') data.items.forEach((i) => i.place && counts.set(i.place, (counts.get(i.place) || 0) + 1));
+    el.placeChips.hidden = counts.size < 2;
+    const flagOf = (name) => (name === 'Türkiye basını' ? '🇹🇷📰' : name === 'Bölge geneli' ? '🌐' : meta.countries.find((c) => c.name === name)?.flag || '');
+    el.placeChips.replaceChildren(...[...counts].sort((a, b) => b[1] - a[1]).map(([name, n]) => {
+      const b = node('button', { type: 'button', className: 'chip', textContent: `${flagOf(name)} ${name} · ${n}` });
+      b.setAttribute('aria-pressed', String(el.place.value === name));
+      b.addEventListener('click', () => { el.place.value = el.place.value === name ? 'all' : name; render(); });
+      return b;
+    }));
+  }
 
   // Sonuçtaki temaların sayıları: bir temaya tıklayınca liste o temaya süzülür.
   function renderThemeCounts() {
@@ -257,11 +330,15 @@
     const all = sources.length === meta.sources.filter((x) => x.defaultOn !== false).length && sources.every((id) => meta.sources.find((x) => x.id === id)?.defaultOn !== false);
     const searchLike = mode === 'search' || mode === 'breaking';
     const world = !searchLike || isWorld();
+    const balkan = mode === 'balkan';
+    if (balkan && !balkanSel.size) return setStatus('En az bir Balkan ülkesi seç.', 'error');
+    const oneBalkan = balkan && balkanSel.size === 1;
     const ui = {
-      mode, country: searchLike ? el.country.value : '', city: world ? '' : selectedCity(), topic: searchLike ? el.topic.value : 'general',
+      mode, country: searchLike ? el.country.value : '', city: balkan ? (oneBalkan ? el.balkanCity.value : '') : world ? '' : selectedCity(),
+      balkan: balkan ? [...balkanSel].join(',') : '', trpress: balkan && !el.trpress.checked ? '0' : '', topic: searchLike ? el.topic.value : 'general',
       range: el.range.value, q: el.keyword.value.trim(), sources: all ? '' : sources.join(','), hours: breaking ? el.hours.value : '',
-      themes: mode === 'radar' ? [...themes].join(',') : '',
-      strict: !world && !el.strict.checked ? '0' : '', tstrict: searchLike && el.topic.value !== 'general' && !el.tstrict.checked ? '0' : '',
+      themes: mode === 'radar' ? [...themes].join(',') : balkan ? [...lenses].join(',') : '',
+      strict: (balkan ? oneBalkan : !world) && !el.strict.checked ? '0' : '', tstrict: searchLike && el.topic.value !== 'general' && !el.tstrict.checked ? '0' : '',
     };
     if (ui.range === 'custom') Object.assign(ui, range);
     if (!silent) {
@@ -289,7 +366,7 @@
     try {
       const params = new URLSearchParams({
         mode, country: ui.country || 'ALL', city: ui.city, topic: ui.topic, q: ui.q, sources: ui.sources, strict: ui.strict,
-        tstrict: ui.tstrict, hours: ui.hours, themes: ui.themes, from: range.from, to: range.to,
+        tstrict: ui.tstrict, hours: ui.hours, themes: ui.themes, balkan: ui.balkan, trpress: ui.trpress, from: range.from, to: range.to,
       });
       const body = await fetchNews(params, mine.signal, (partial) => {
         if (silent || mine !== controller) return;
@@ -339,15 +416,19 @@
     const note = failed ? ` ${failed} dönem alınamadı.` : '';
     const wait = data.partial ? ` ${data.pending} kaynak bekleniyor…` : '';
     const head = data.mode === 'breaking' ? `${data.total} haber · son ${data.hours} saat.${note}${wait}` : `${data.total} haber bulundu.${note}${wait}`;
-    const detail = data.mode === 'maarif' ? 'Türkiye Maarif Vakfı' : data.mode === 'radar' ? 'Eğitim radarı' : data.mode === 'breaking' ? '' : `Arama:`;
+    const detail = data.mode === 'maarif' ? 'Türkiye Maarif Vakfı' : data.mode === 'radar' ? 'Eğitim radarı' : data.mode === 'balkan' ? 'Balkanlar' : data.mode === 'breaking' ? '' : `Arama:`;
     const what = [el.city.value && el.city.value !== CUSTOM_CITY ? el.city.value : el.cityCustom.value.trim(), el.topic.value !== 'general' ? el.topic.selectedOptions[0]?.textContent.trim() : '', el.keyword.value.trim()].filter(Boolean).join(' · ');
-    setStatus(`${head} ${detail}`.trim(), failed ? 'error' : '', data.mode === 'search' ? what : '');
+    const balkanWhat = data.mode === 'balkan'
+      ? [(data.region || []).map((c) => meta.countries.find((x) => x.code === c)?.name).filter(Boolean).join(', '), el.balkanCity.value && data.region?.length === 1 ? el.balkanCity.value : '', el.keyword.value.trim()].filter(Boolean).join(' · ')
+      : '';
+    setStatus(`${head} ${detail}`.trim(), failed ? 'error' : '', data.mode === 'search' ? what : balkanWhat);
     renderSourceSummary();
     const by = data.hiddenBy || {};
     el.hiddenNote.hidden = !data.hidden;
     el.hiddenText.textContent = `${data.hidden} haber gizlendi (${[by.country && `${by.country} başka ülkeyi konu alıyor`, by.topic && `${by.topic} seçilen konuyla ilgisiz`].filter(Boolean).join(', ')}).`;
     renderPlaces();
     renderTimeline();
+    renderPlaceChips();
     renderThemeCounts();
     const hasSocial = data.items.some((i) => i.kind === 'social' || i.kind === 'factcheck');
     el.kind.hidden = !hasSocial;
@@ -612,7 +693,7 @@
     if (next === 'radar') el.sort.value = 'sources'; else if (el.sort.value === 'sources') el.sort.value = 'desc';
     syncFields();
     scheduleAuto();
-    if (run && (next === 'breaking' || next === 'maarif' || next === 'radar')) runSearch(); // bu sekmelerde varsayılanlarla hemen çalışır
+    if (run && (next === 'breaking' || next === 'maarif' || next === 'radar' || next === 'balkan')) runSearch(); // bu sekmelerde varsayılanlarla hemen çalışır
     else writeUrl({ mode: next });
   }
 
@@ -646,8 +727,17 @@
     hidden = store.getHidden();
     renderThemeChips();
     el.stype.replaceChildren(option('all', 'Tüm yayıncılar', true));
-    if (saved.themes) saved.themes.split(',').forEach((id) => themeInfo(id) && themes.add(id));
-    if (['breaking', 'maarif', 'radar'].includes(q.mode)) mode = q.mode;
+    if (['breaking', 'maarif', 'radar', 'balkan'].includes(q.mode)) mode = q.mode;
+    const savedIds = (saved.themes || '').split(',');
+    if (mode === 'balkan') savedIds.forEach((id) => (meta.balkan?.lenses || []).some((l) => l.id === id) && lenses.add(id));
+    else savedIds.forEach((id) => (meta.radar?.themes || []).some((t) => t.id === id) && themes.add(id));
+    // Balkanlar: adreste ya da kayıtta ülke yoksa odak ülke (Arnavutluk) seçili başlar
+    (saved.balkan || '').split(',').filter((c) => (meta.balkan?.countries || []).includes(c)).forEach((c) => balkanSel.add(c));
+    if (!balkanSel.size && meta.balkan) balkanSel.add(meta.balkan.focus);
+    el.trpress.checked = saved.trpress !== '0';
+    renderBalkan();
+    renderLensChips();
+    if (q.city && mode === 'balkan' && balkanSel.size === 1) { renderBalkanCity(); el.balkanCity.value = q.city; }
     if (mode === 'radar') { el.sort.value = 'sources'; renderThemeChips(); }
     syncFields();
 
@@ -659,6 +749,7 @@
     el.sort.addEventListener('change', render);
     el.place.addEventListener('change', render);
     el.kind.addEventListener('change', render);
+    el.balkanCity.addEventListener('change', syncFields);
     el.stype.addEventListener('change', render);
     el.undoHide.addEventListener('click', () => { hidden = { links: [], sources: [] }; store.setHidden(hidden); render(); });
     el.auto.addEventListener('change', scheduleAuto);
@@ -669,7 +760,7 @@
     el.form.addEventListener('submit', (e) => { e.preventDefault(); runSearch(); });
 
     scheduleAuto();
-    if (q.country || ['breaking', 'maarif', 'radar'].includes(q.mode)) runSearch(); // paylaşılan bağlantı: otomatik ara
+    if (q.country || ['breaking', 'maarif', 'radar', 'balkan'].includes(q.mode)) runSearch(); // paylaşılan bağlantı: otomatik ara
   }
 
   init();

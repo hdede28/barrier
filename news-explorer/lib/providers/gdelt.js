@@ -84,6 +84,7 @@ module.exports = {
   kind: 'news',
   skip: (ctx, { now }) => {
     if (ctx.mode === 'breaking') return 'Son dakika modunda kullanılmaz (hız sınırı)';
+    if (ctx.mode === 'balkan' && ctx.world) return 'Birden çok ülke seçiliyken kullanılmaz (tek ülke seç)';
     return ctx.windows.at(-1).to < daysAgo(now, MAX_AGE_DAYS) ? 'GDELT yalnızca son 3 ayı kapsar' : null;
   },
   async fetch(ctx, { bases, now, timing = {} }) {

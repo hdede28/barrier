@@ -55,9 +55,9 @@ const COUNTRIES = [
     cities: ['Kuala Lumpur', 'George Town', 'Johor Bahru', 'Ipoh', 'Kota Kinabalu', 'Kuching'] },
   // approximate: Google Haberler'de bu ülke için ayrı bir sürüm olmayabilir; arama ülke adıyla da daraltılır.
   { code: 'AL', name: 'Arnavutluk', nativeName: 'Shqipëri', flag: '🇦🇱', hl: 'sq', ceid: 'AL:sq', approximate: true,
-    cities: ['Tiranë', 'Durrës', 'Vlorë', 'Shkodër', 'Elbasan'] },
+    cities: ['Tiranë', 'Durrës', 'Vlorë', 'Shkodër', 'Elbasan', 'Korçë', 'Fier', 'Sarandë', 'Gjirokastër', 'Berat', 'Lushnjë', 'Kukës', 'Lezhë', 'Pogradec', 'Himarë', 'Krujë'] },
   { code: 'XK', name: 'Kosova', nativeName: 'Kosovë', flag: '🇽🇰', hl: 'sq', ceid: 'XK:sq', approximate: true,
-    cities: ['Prishtinë', 'Prizren', 'Pejë', 'Gjakovë', 'Mitrovicë'] },
+    cities: ['Prishtinë', 'Prizren', 'Pejë', 'Gjakovë', 'Mitrovicë', 'Ferizaj', 'Gjilan'] },
   { code: 'MK', name: 'Kuzey Makedonya', nativeName: 'Северна Македонија', flag: '🇲🇰', hl: 'mk', ceid: 'MK:mk', approximate: true,
     cities: ['Скопје', 'Битола', 'Охрид', 'Куманово', 'Тетово'] },
   { code: 'ME', name: 'Karadağ', nativeName: 'Crna Gora', flag: '🇲🇪', hl: 'sr', ceid: 'ME:sr', terms: 'sr', approximate: true,

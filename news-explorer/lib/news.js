@@ -3,7 +3,8 @@
 const { HttpError, parseSearchParams } = require('./query');
 const { createProviders, selectProviders, DEFAULT_BASES } = require('./providers');
 const { errorText, withDeadline } = require('./providers/common');
-const { foreignFocus, offTopic, themesOf } = require('./relevance');
+const { foreignFocus, offTopic, themesOf, lensesOf, regionOf } = require('./relevance');
+const { findCountry } = require('../data/meta');
 const { clusterStories, tokens } = require('./cluster');
 const { classifySource } = require('../data/source-types');
 
@@ -106,6 +107,16 @@ function buildBody(ctx, providers, runs, partial) {
   const fresh = ctx.mode === 'breaking' ? items.filter((it) => it.published && Date.parse(it.published) >= ctx.sinceMs) : items;
   const passed = fresh.filter((it) => {
     if (ctx.strict && foreignFocus(it.title, ctx.country, own)) { hiddenBy.country++; return false; }
+    if (ctx.mode === 'balkan') {
+      // Ülkesi belli olmayan haberin ülkesi başlıktan bulunur; başlığı yalnızca seçili bölge dışındaki bölge ülkelerini anan haber elenir.
+      const codes = regionOf(it.title);
+      if (codes.length && !codes.some((c) => ctx.region.includes(c)) && (ctx.world || ctx.strict)) { hiddenBy.country++; return false; }
+      if (!it.country || !ctx.region.includes(it.country)) {
+        const mine = codes.find((c) => ctx.region.includes(c));
+        if (mine && !it.press) { it.country = mine; it.place = findCountry(mine).name; }
+        else if (!it.place) it.place = 'Bölge geneli';
+      }
+    }
     // Konuya özel akıştan (ör. BBC Eğitim) gelen haber zaten konuya aittir.
     if (ctx.topicStrict && !it.topicTrusted && offTopic(it.title, ctx.topic, it.lang || 'en')) { hiddenBy.topic++; return false; }
     return true;
@@ -114,10 +125,11 @@ function buildBody(ctx, providers, runs, partial) {
   // Eğitim radarı: her habere hangi temalara girdiği eklenir; tema seçildiyse yalnızca o temalara girenler kalır.
   let themed = passed;
   const themeCounts = {};
-  if (ctx.mode === 'radar') {
+  if (ctx.mode === 'radar' || ctx.mode === 'balkan') {
+    const classify = ctx.mode === 'balkan' ? lensesOf : themesOf;
     themed = [];
     for (const it of passed) {
-      it.themes = themesOf(it.title);
+      it.themes = classify(it.title);
       if (!ctx.themes.length || it.themes.some((t) => ctx.themes.includes(t))) themed.push(it);
     }
     for (const it of themed) for (const t of it.themes) themeCounts[t] = (themeCounts[t] || 0) + 1;
@@ -143,7 +155,8 @@ function buildBody(ctx, providers, runs, partial) {
     hours: ctx.hours || null,
     generatedAt: new Date().toISOString(),
     world: ctx.world,
-    themeCounts: ctx.mode === 'radar' ? themeCounts : undefined,
+    themeCounts: ctx.mode === 'radar' || ctx.mode === 'balkan' ? themeCounts : undefined,
+    region: ctx.region || undefined,
     partial,
     pending: runs.filter((r) => !r).length,
     items: visible,
@@ -183,7 +196,7 @@ async function getNews(searchParams, { newsBase, bases = {}, cache, providers = 
 
   // Son dakika önbelleği kısa tutulur (varsayılan 60 sn); 0 = önbellek yok
   const bucket = ctx.mode === 'breaking' ? (breakingTtl > 0 ? Math.floor(Date.now() / (breakingTtl * 1000)) : Math.random()) : '';
-  const key = `${ctx.mode}|${ctx.hours}|${bucket}|${ctx.country.code}|${ctx.topic}|${ctx.city}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}|${ctx.strict}|${ctx.topicStrict}|${ctx.cluster}|${ctx.themes.join('+')}`;
+  const key = `${ctx.mode}|${ctx.hours}|${bucket}|${ctx.country.code}|${ctx.topic}|${ctx.city}|${ctx.query}|${ctx.windows[0].from}|${ctx.windows.at(-1).to}|${chosen.map((p) => p.id).join(',')}|${ctx.strict}|${ctx.topicStrict}|${ctx.cluster}|${ctx.themes.join('+')}|${ctx.region?.join('+') || ''}|${ctx.trPress}`;
   const hit = await cache?.get(key);
   if (hit) return { ...hit, cached: true };
 

@@ -1,9 +1,10 @@
 'use strict';
 
-const { dateOperators, buildSearchQuery } = require('../query');
+const { dateOperators, buildSearchQuery, orClause } = require('../query');
 const { findCountry, WORLD_EDITION_CODES } = require('../../data/meta');
 const { EDITION_CODES: MAARIF_EDITIONS, namesFor, quoted } = require('../../data/maarif');
 const { EDITION_CODES: RADAR_EDITIONS, clause } = require('../../data/radar');
+const balkan = require('../../data/balkan');
 const { parseRss } = require('../rss');
 const { fetchText, errorText, langOf } = require('./common');
 
@@ -42,6 +43,23 @@ function planJobs(ctx) {
       return ctx.windows.map((win, w) => ({ edition, query, win, w }));
     });
   }
+  if (ctx.mode === 'balkan') {
+    // Balkanlar: seçilen her ülkenin kendi Google Haberler sürümü, kendi dilindeki terimlerle (tek ülkede ctx.query: şehir dahil)
+    const jobs = ctx.region.map(findCountry).flatMap((edition) => {
+      const query = ctx.world
+        ? buildSearchQuery({ country: edition, city: '', topic: 'general', keyword: [balkan.clause(ctx.themes, balkan.LANG_OF[edition.code] || 'en'), ctx.keyword].filter(Boolean).join(' ') })
+        : ctx.query;
+      return ctx.windows.map((win, w) => ({ edition, query, win, w }));
+    });
+    if (ctx.trPress) {
+      // Türkiye basınında bölge haberleri: Türkçe ülke adları + seçili başlıkların Türkçe terimleri (şehir seçiliyse şehir de)
+      const names = ctx.region.flatMap((c) => (ctx.region.length <= 3 ? balkan.TR_NAMES[c] : balkan.TR_NAMES[c].slice(0, 1)));
+      const query = [orClause(ctx.city ? [ctx.city.split('/')[0].trim()] : names), balkan.clause(ctx.themes, 'tr'), ctx.keyword].filter(Boolean).join(' ');
+      const edition = findCountry('TR');
+      jobs.push(...ctx.windows.map((win, w) => ({ edition, query, win, w, press: true })));
+    }
+    return jobs;
+  }
   const editions = ctx.world ? WORLD_EDITION_CODES.map(findCountry) : [ctx.country];
   const queryFor = (edition) => (ctx.world ? buildSearchQuery({ country: edition, city: '', topic: ctx.topic, keyword: ctx.keyword }) : ctx.query);
   if (ctx.mode === 'breaking') {
@@ -65,15 +83,15 @@ module.exports = {
   skip: () => null,
   async fetch(ctx, { bases }) {
     const jobs = planJobs(ctx);
-    const multi = ctx.world || ctx.mode !== 'search';
-    const limit = multi ? PER_EDITION_WORLD : ctx.windows.length === 1 ? PER_WINDOW_SINGLE : PER_WINDOW_MULTI;
+    const multi = ctx.world || (ctx.mode !== 'search' && ctx.mode !== 'balkan');
+    const limitOf = (job) => (multi || job.press ? PER_EDITION_WORLD : ctx.windows.length === 1 ? PER_WINDOW_SINGLE : PER_WINDOW_MULTI);
     const results = new Array(jobs.length);
     let next = 0;
     const worker = async () => {
       while (next < jobs.length) {
         const i = next++;
         try {
-          results[i] = { items: await fetchJob(bases.google, jobs[i], limit) };
+          results[i] = { items: await fetchJob(bases.google, jobs[i], limitOf(jobs[i])) };
         } catch (err) {
           results[i] = { items: [], error: errorText(err) };
         }
@@ -83,7 +101,8 @@ module.exports = {
     if (results.every((r) => r.error)) throw new Error(results[0].error);
 
     const items = results.flatMap((r, i) => r.items.map((it) => ({
-      ...it, window: jobs[i].w, country: jobs[i].edition.code, place: jobs[i].edition.name, lang: langOf(jobs[i].edition.hl),
+      ...it, window: jobs[i].w, country: jobs[i].edition.code, place: jobs[i].press ? 'Türkiye basını' : jobs[i].edition.name, lang: langOf(jobs[i].edition.hl),
+      ...(jobs[i].press && { press: true }),
     })));
     // Bir pencerede hata vardır = o pencereyi sorgulayan tüm işler başarısız olmuştur
     const windowErrors = ctx.windows.map((_, w) => {

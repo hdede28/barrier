@@ -2,6 +2,7 @@
 
 const { findCountry, findTopic, termsFor, generalTerms, WORLD, WORLD_EDITION_CODES } = require('../data/meta');
 const { validIds } = require('../data/radar');
+const balkanData = require('../data/balkan');
 
 const DAY = 86400000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -91,7 +92,8 @@ const dateOperators = (w) => `after:${w.from} before:${fmt(addDays(parseDate(w.t
 
 const WORLD_MAX_WINDOWS = 3; // her yayın sürümü ayrı sorgulandığı için dünya aramasında pencere sayısı sınırlı
 const MAARIF_MAX_WINDOWS = 2;
-const MODES = ['search', 'breaking', 'maarif', 'radar'];
+const BALKAN_MAX_WINDOWS = 6; // tek ülke: Türkiye basını sorgusu da pencere başına çalıştığı için 12 değil 6
+const MODES = ['search', 'breaking', 'maarif', 'radar', 'balkan'];
 const BREAKING_HOURS = [1, 3, 6, 24];
 
 // mode: 'search' (arama), 'breaking' (son dakika: son N saat), 'maarif' (Türkiye Maarif Vakfı: tüm dünya, vakfın adları)
@@ -100,10 +102,16 @@ function parseSearchParams(params, now = new Date()) {
   const maarif = mode === 'maarif';
   const breaking = mode === 'breaking';
   const radar = mode === 'radar'; // eğitim radarı: dünya geneli, konu hep eğitim, isteğe bağlı temalar
-  const world = maarif || radar || params.get('country') === WORLD.code;
-  const country = world ? { ...WORLD, hl: 'en', terms: ['en'], cities: [], world: true } : findCountry(params.get('country'));
+  const balkan = mode === 'balkan'; // Balkanlar: seçilen bölge ülkeleri (boşsa hepsi); tek ülke seçiliyse o ülkenin aramasıdır, çoksa çok sürümlü
+  let region = null;
+  if (balkan) {
+    region = balkanData.validCodes((params.get('balkan') || '').split(','));
+    if (!region.length) region = [...balkanData.COUNTRY_CODES];
+  }
+  const world = maarif || radar || (balkan && region.length > 1) || (!balkan && params.get('country') === WORLD.code);
+  const country = world ? { ...WORLD, hl: 'en', terms: ['en'], cities: [], world: true } : findCountry(balkan ? region[0] : params.get('country'));
   if (!country) throw new HttpError(400, 'Geçersiz ülke.');
-  const topic = maarif ? 'general' : radar ? 'education' : params.get('topic') || 'general';
+  const topic = maarif || balkan ? 'general' : radar ? 'education' : params.get('topic') || 'general';
   if (!findTopic(topic)) throw new HttpError(400, 'Geçersiz konu.');
   const city = world ? '' : cleanText(params.get('city'));
   const keyword = cleanText(params.get('q'), 120);
@@ -114,9 +122,11 @@ function parseSearchParams(params, now = new Date()) {
     hours = BREAKING_HOURS.includes(Number(params.get('hours'))) ? Number(params.get('hours')) : 3;
     windows = [{ from: fmt(addDays(now, -1)), to: fmt(now) }];
   } else {
-    windows = planWindows(params.get('from'), params.get('to'), now, maarif ? MAARIF_MAX_WINDOWS : world ? WORLD_MAX_WINDOWS : MAX_WINDOWS);
+    windows = planWindows(params.get('from'), params.get('to'), now, maarif ? MAARIF_MAX_WINDOWS : world ? WORLD_MAX_WINDOWS : balkan ? BALKAN_MAX_WINDOWS : MAX_WINDOWS);
   }
-  const themes = radar ? validIds((params.get('themes') || '').split(',').map((x) => x.trim())) : [];
+  const themeList = (params.get('themes') || '').split(',').map((x) => x.trim());
+  const themes = radar ? validIds(themeList) : balkan ? balkanData.validIds(themeList) : [];
+  const trPress = balkan && params.get('trpress') !== '0'; // Türkiye basınında bölge haberleri de aransın
   const sources = (params.get('sources') || '').split(',').map((x) => x.trim()).filter(Boolean);
   // strict (varsayılan açık): başka ülkeleri konu alan başlıklar gizlenir. Dünya aramasında anlamsız.
   const strict = !world && params.get('strict') !== '0';
@@ -124,8 +134,10 @@ function parseSearchParams(params, now = new Date()) {
   const topicStrict = topic !== 'general' && params.get('tstrict') !== '0';
   // cluster: benzer başlıklı haberler tek haberde toplanır, kaç bağımsız kaynakta çıktığı sayılır (son dakika ve Maarif'te hep).
   const cluster = mode !== 'search' || params.get('cluster') === '1';
-  const ctx = { mode, country, topic, city, keyword, windows, sources, world, strict, topicStrict, cluster, hours, themes, sinceMs: breaking ? now.getTime() - hours * 3600000 : 0 };
-  ctx.query = world ? (keyword || '') : buildSearchQuery(ctx);
+  const ctx = { mode, country, topic, city, keyword, windows, sources, world, strict, topicStrict, cluster, hours, themes, region, trPress, sinceMs: breaking ? now.getTime() - hours * 3600000 : 0 };
+  // Balkanlar (tek ülke): seçili başlıkların terimleri ülkenin dilinde sorguya girer.
+  const lens = balkan && !world ? balkanData.clause(themes, balkanData.LANG_OF[country.code] || 'en') : '';
+  ctx.query = world ? (keyword || '') : buildSearchQuery({ ...ctx, keyword: [lens, keyword].filter(Boolean).join(' ') });
   return ctx;
 }
 

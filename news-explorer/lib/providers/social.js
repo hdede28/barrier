@@ -40,6 +40,7 @@ const mastodon = {
   available: true,
   skip(ctx, { now }) {
     if (ctx.mode === 'breaking') return 'Son dakika modunda kullanılmaz';
+    if (ctx.mode === 'balkan') return 'Balkanlar bölümünde kullanılmaz';
     if (ctx.windows.at(-1).to < daysAgo(now, 30)) return 'Mastodon yalnızca güncel gönderileri kapsar';
     if (ctx.mode === 'maarif' || ctx.mode === 'radar') return null;
     const { topic, city, words } = searchTerms(ctx);
@@ -83,6 +84,7 @@ const reddit = {
   defaultOn: false, // Reddit bulut sunucularını (429) sistematik olarak engeller; istenirse elle açılır
   skip(ctx) {
     if (ctx.mode === 'breaking' || ctx.mode === 'radar') return 'Bu modda kullanılmaz';
+    if (ctx.mode === 'balkan' && ctx.world) return 'Birden çok ülke seçiliyken kullanılmaz (tek ülke seç)';
     const { topic, city, words } = searchTerms(ctx);
     return ctx.mode !== 'maarif' && ctx.world && !topic.length && !city.length && !words.length ? 'Konu ya da kelime gerekli' : null;
   },
@@ -122,7 +124,7 @@ const hn = {
   kind: 'social',
   available: true,
   skip(ctx) {
-    if (ctx.mode === 'breaking' || ctx.mode === 'maarif' || ctx.mode === 'radar') return 'Bu modda kullanılmaz';
+    if (ctx.mode === 'breaking' || ctx.mode === 'maarif' || ctx.mode === 'radar' || ctx.mode === 'balkan') return 'Bu modda kullanılmaz';
     const relevant = ctx.world || ['technology', 'science'].includes(ctx.topic) || ctx.keyword;
     return relevant ? null : 'Yalnızca teknoloji/bilim konularında ve kelime aramalarında';
   },

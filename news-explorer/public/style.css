@@ -147,3 +147,12 @@ fieldset.themes .hint { margin: 8px 0 0; }
 .result .basis { margin: 8px 0 0; font-size: .76rem; color: var(--muted); }
 .result .err { color: var(--warn); }
 #themeCounts[hidden], #hideNote[hidden] { display: none; }
+
+/* Balkanlar bölümü */
+fieldset.balkan { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; margin: 0; min-width: 0; display: grid; gap: 10px; }
+fieldset.balkan legend { padding: 0 6px; font-size: .85rem; color: var(--muted); font-weight: 600; }
+fieldset.balkan legend small { font-weight: 400; }
+fieldset.balkan[hidden], fieldset.themes[hidden] { display: none; }
+.chip.preset { border-style: dashed; color: var(--muted); }
+.chip.preset:hover { color: var(--ink); border-color: var(--accent); }
+#placeChips[hidden] { display: none; }

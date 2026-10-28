@@ -15,7 +15,7 @@
   <header class="hero">
     <div class="wrap">
       <h1><img class="logo" src="logo.jpg" width="780" height="420" alt="HD Haber"></h1>
-      <p>Ülke, şehir ve konuya göre güncel ve geçmiş haberler. Son dakika, Türkiye Maarif Vakfı ve eğitim yöneticileri için Eğitim radarı bölümleri.</p>
+      <p>Ülke, şehir ve konuya göre güncel ve geçmiş haberler. Son dakika, Türkiye Maarif Vakfı, Eğitim radarı ve Balkanlar bölümleri.</p>
     </div>
   </header>
 
@@ -25,6 +25,7 @@
       <button type="button" data-mode="breaking" aria-pressed="false">🔴 Son dakika</button>
       <button type="button" data-mode="maarif" aria-pressed="false">🎓 Maarif Vakfı</button>
       <button type="button" data-mode="radar" aria-pressed="false">🧭 Eğitim radarı</button>
+      <button type="button" data-mode="balkan" aria-pressed="false">🏔️ Balkanlar</button>
     </nav>
     <form id="search" class="panel" autocomplete="off">
       <div class="grid">
@@ -40,7 +41,7 @@
         <label data-modes="search breaking">Konu
           <select id="topic" name="topic"></select>
         </label>
-        <label data-modes="search maarif radar">Dönem
+        <label data-modes="search maarif radar balkan">Dönem
           <select id="range" name="range">
             <option value="2">Bugün ve dün</option>
             <option value="7">Son 7 gün</option>
@@ -50,10 +51,10 @@
             <option value="custom">Özel aralık…</option>
           </select>
         </label>
-        <label class="custom-date" data-modes="search maarif radar" hidden>Başlangıç
+        <label class="custom-date" data-modes="search maarif radar balkan" hidden>Başlangıç
           <input id="from" type="date" min="2000-01-01">
         </label>
-        <label class="custom-date" data-modes="search maarif radar" hidden>Bitiş
+        <label class="custom-date" data-modes="search maarif radar balkan" hidden>Bitiş
           <input id="to" type="date" min="2000-01-01">
         </label>
         <label data-modes="breaking" id="hoursWrap" hidden>Süre
@@ -71,6 +72,20 @@
           <input id="auto" type="checkbox" checked>
           <span>Otomatik yenile (90 saniyede bir) <small id="lastUpdate"></small></span>
         </label>
+        <fieldset class="wide balkan" id="balkanBox" data-modes="balkan" hidden>
+          <legend>Balkan ülkeleri <small>(birden çok seçebilirsin)</small></legend>
+          <div id="balkanPresets" class="chips presets" aria-label="Hazır seçimler"></div>
+          <div id="balkanChips" class="chips"></div>
+          <label id="balkanCityWrap" hidden>Şehir
+            <select id="balkanCity"></select>
+          </label>
+          <label class="check"><input id="trpress" type="checkbox" checked><span>Türkiye basınında da ara <small>(Türkçe Google Haberler, AA, TRT: seçili ülkeleri anan haberler "Türkiye basını" olarak ayrı görünür)</small></span></label>
+        </fieldset>
+        <fieldset class="wide themes" id="lensBox" data-modes="balkan" hidden>
+          <legend>Başlıklar <small>(boş bırakırsan hepsi)</small></legend>
+          <div id="lensChips" class="chips"></div>
+          <p class="hint">Her başlık, bölgedeki dillerde (Arnavutça, Sırpça-Hırvatça-Boşnakça, Makedonca, Bulgarca, Romence, Yunanca, İngilizce, Türkçe) aranır. Yabancı dildeki başlıkları sonuçlarda Türkçeye çevirebilirsin.</p>
+        </fieldset>
         <fieldset class="wide themes" id="themeBox" data-modes="radar" hidden>
           <legend>Temalar <small>(boş bırakırsan hepsi)</small></legend>
           <div id="themeChips" class="chips"></div>
@@ -136,6 +151,7 @@
           <option value="sources">En çok kaynakta yer alan</option>
         </select>
       </div>
+      <div id="placeChips" class="chips counts" hidden></div>
       <div id="themeCounts" class="chips counts" hidden></div>
       <p id="hideNote" class="note info" hidden><span id="hideText"></span> <button type="button" id="undoHide" class="linkbtn">Geri al</button></p>
       <p id="langNote" class="note" role="note" hidden></p>

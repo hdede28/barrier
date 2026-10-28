@@ -12,6 +12,7 @@ const { diagnose, formatText } = require('./lib/diagnose');
 const { NAMES: MAARIF_NAMES } = require('./data/maarif');
 const { TYPES: SOURCE_TYPES } = require('./data/source-types');
 const { THEMES } = require('./data/radar');
+const BALKAN = require('./data/balkan');
 const { createFactChecker } = require('./lib/factcheck');
 const { summarizerFromEnv } = require('./lib/summarize');
 const { createFeedbackStore } = require('./lib/feedback');
@@ -126,7 +127,7 @@ function createServer({
       }
       if (req.method === 'POST' && url.pathname === '/api/feedback') return sendJson(res, 200, feedback.add(await readJson(req), clientIp(req)));
       if (req.method !== 'GET') return sendJson(res, 405, { error: 'Yalnızca GET desteklenir.' });
-      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, world: WORLD, stream: true, summary: Boolean(summarizer), factcheck: { available: checker.available, api: checker.hasApi }, sourceTypes: SOURCE_TYPES, radar: { themes: THEMES.map(({ id, icon, label }) => ({ id, icon, label })) }, maarif: { names: MAARIF_NAMES }, version: VERSION, sources: describe(providers), translation: translator?.provider || false });
+      if (url.pathname === '/api/meta') return sendJson(res, 200, { countries: COUNTRIES, topics: TOPICS, world: WORLD, stream: true, summary: Boolean(summarizer), factcheck: { available: checker.available, api: checker.hasApi }, sourceTypes: SOURCE_TYPES, radar: { themes: THEMES.map(({ id, icon, label }) => ({ id, icon, label })) }, balkan: { countries: BALKAN.COUNTRY_CODES, focus: BALKAN.FOCUS, lenses: BALKAN.LENSES.map(({ id, icon, label }) => ({ id, icon, label })) }, maarif: { names: MAARIF_NAMES }, version: VERSION, sources: describe(providers), translation: translator?.provider || false });
       if (url.pathname === '/api/factcheck') return sendJson(res, 200, await checker.lookup(url.searchParams.get('q'), (url.searchParams.get('lang') || '').slice(0, 5)));
       if (url.pathname === '/api/feedback') return sendJson(res, 200, feedback.report(url.searchParams.get('token')));
       if (url.pathname === '/api/diagnose') {

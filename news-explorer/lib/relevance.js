@@ -3,6 +3,7 @@
 const { COUNTRIES, TOPICS, TOPIC_TERMS } = require('../data/meta');
 const { EXTRA } = require('../data/lexicon');
 const { THEMES } = require('../data/radar');
+const { LENSES, LANGS, COUNTRY_CODES: BALKAN_CODES } = require('../data/balkan');
 const { COUNTRY_ALIASES, OTHER_PLACES } = require('../data/feeds');
 const { norm, containsTerm } = require('./providers/common');
 
@@ -87,4 +88,17 @@ function themesOf(title) {
   return THEMES.filter((t) => [...t.en, ...t.tr].some((term) => containsTerm(text, term))).map((t) => t.id);
 }
 
-module.exports = { foreignFocus, mentions, namesOf, topicScore, offTopic, themesOf };
+// Balkanlar: bir başlık hangi "başlıklara" (merceklere) giriyor? Bölgedeki tüm dillerin terimleriyle aranır.
+function lensesOf(title) {
+  const text = norm(title);
+  return LENSES.filter((l) => LANGS.some((k) => (l[k] || []).some((term) => containsTerm(text, term)))).map((l) => l.id);
+}
+
+// Balkanlar: başlıkta adı geçen bölge ülkeleri (kodlarıyla). Birden çok ülkeyi kapsayan akışlarda haberin ülkesini bulmak için.
+const BALKAN_PLACES = COUNTRY_PLACES.filter((p) => BALKAN_CODES.includes(p.code));
+function regionOf(title) {
+  const folded = norm(title);
+  return BALKAN_PLACES.filter((p) => p.names.some((n) => mentions(title, folded, n))).map((p) => p.code);
+}
+
+module.exports = { lensesOf, regionOf, foreignFocus, mentions, namesOf, topicScore, offTopic, themesOf };
